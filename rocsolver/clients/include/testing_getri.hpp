@@ -153,7 +153,8 @@ void getri_getError(const rocblas_handle handle,
 
     // CPU lapack
     for (rocblas_int b = 0; b < bc; ++b) {
-        cblas_getri<T>(n, hA[b], lda, hIpiv[b], hW.data(), &sizeW);
+        //cblas_getri<T>(n, hA[b], lda, hIpiv[b], hW.data(), &sizeW);
+        cblas_trtri<T>(rocblas_fill_upper, rocblas_diagonal_non_unit, n, hA[b], lda);
     }
    
     // expecting original matrix to be non-singular

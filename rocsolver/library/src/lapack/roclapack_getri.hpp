@@ -194,60 +194,60 @@ rocblas_status rocsolver_getri_template(rocblas_handle handle, const rocblas_int
     hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,blocks1), dim3(1,32,32), 0, stream,
                        n, n, work, 0, ldw, strideW, A, shiftA, lda, strideA, rocblas_fill_upper);
     
-    if (n <= nb)
-    {
-        // use unblocked version
-        strideW = n;
+    // if (n <= nb)
+    // {
+    //     // use unblocked version
+    //     strideW = n;
 
-        for (rocblas_int j = n-2; j >= 0; --j)
-        {
-            blocks1 = ((n-j) - 1)/64 + 1;
-            hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,1), dim3(1,64,1), 0, stream,
-                               n-j, 1, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower);
+    //     for (rocblas_int j = n-2; j >= 0; --j)
+    //     {
+    //         blocks1 = ((n-j) - 1)/64 + 1;
+    //         hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,1), dim3(1,64,1), 0, stream,
+    //                            n-j, 1, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower);
 
-            rocblasCall_gemv(handle, rocblas_operation_none, n, n-j-1,
-                             &minone, 0, A, shiftA + idx2D(0,j+1,lda), lda, strideA,
-                             work, j+1, 1, strideW,
-                             &one, 0, A, shiftA + idx2D(0,j,lda), 1, strideA,
-                             batch_count, workArr);
-        }
-    }
-    else
-    {
-        //use blocked version
-        strideW = n*nb;
+    //         rocblasCall_gemv(handle, rocblas_operation_none, n, n-j-1,
+    //                          &minone, 0, A, shiftA + idx2D(0,j+1,lda), lda, strideA,
+    //                          work, j+1, 1, strideW,
+    //                          &one, 0, A, shiftA + idx2D(0,j,lda), 1, strideA,
+    //                          batch_count, workArr);
+    //     }
+    // }
+    // else
+    // {
+    //     //use blocked version
+    //     strideW = n*nb;
 
-        rocblas_int nn = ((n - 1)/nb)*nb + 1;
-        for (rocblas_int j = nn-1; j >= 0; j -= nb)
-        {
-            jb = min(n-j, nb);
+    //     rocblas_int nn = ((n - 1)/nb)*nb + 1;
+    //     for (rocblas_int j = nn-1; j >= 0; j -= nb)
+    //     {
+    //         jb = min(n-j, nb);
 
-            blocks1 = ((n-j) - 1)/32 + 1;
-            blocks2 = (jb - 1)/32 + 1;
-            hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,blocks2), dim3(1,32,32), 0, stream,
-                               n-j, jb, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower);
+    //         blocks1 = ((n-j) - 1)/32 + 1;
+    //         blocks2 = (jb - 1)/32 + 1;
+    //         hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,blocks2), dim3(1,32,32), 0, stream,
+    //                            n-j, jb, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower);
 
-            if (j+jb < n)
-                rocblasCall_gemm<BATCHED,STRIDED>(handle, rocblas_operation_none, rocblas_operation_none,
-                                                  n, jb, n-j-jb,
-                                                  &minone, A, shiftA + idx2D(0,j+jb,lda), lda, strideA,
-                                                  work, j+jb, ldw, strideW,
-                                                  &one, A, shiftA + idx2D(0,j,lda), lda, strideA,
-                                                  batch_count, workArr);
+    //         if (j+jb < n)
+    //             rocblasCall_gemm<BATCHED,STRIDED>(handle, rocblas_operation_none, rocblas_operation_none,
+    //                                               n, jb, n-j-jb,
+    //                                               &minone, A, shiftA + idx2D(0,j+jb,lda), lda, strideA,
+    //                                               work, j+jb, ldw, strideW,
+    //                                               &one, A, shiftA + idx2D(0,j,lda), lda, strideA,
+    //                                               batch_count, workArr);
             
-            for (int b = 0; b < batch_count; ++b)
-            {
-                M = load_ptr_batch<T>(AA,b,shiftA,strideA);
-                rocblas_trsm(handle, rocblas_side_right, rocblas_fill_lower, rocblas_operation_none,
-                             rocblas_diagonal_unit, n, jb,
-                             &one, work + j + b*strideW, ldw,
-                             M + idx2D(0,j,lda), lda);
-            }
-        }
-    }
+    //         for (int b = 0; b < batch_count; ++b)
+    //         {
+    //             M = load_ptr_batch<T>(AA,b,shiftA,strideA);
+    //             rocblas_trsm(handle, rocblas_side_right, rocblas_fill_lower, rocblas_operation_none,
+    //                          rocblas_diagonal_unit, n, jb,
+    //                          &one, work + j + b*strideW, ldw,
+    //                          M + idx2D(0,j,lda), lda);
+    //         }
+    //     }
+    // }
     
-    hipLaunchKernelGGL(getri_pivot<T>, dim3(batch_count,1,1), dim3(1,1,1), 0, stream,
-                       n, A, shiftA, lda, strideA, ipiv, shiftP, strideP);
+    // hipLaunchKernelGGL(getri_pivot<T>, dim3(batch_count,1,1), dim3(1,1,1), 0, stream,
+    //                    n, A, shiftA, lda, strideA, ipiv, shiftP, strideP);
 
     rocblas_set_pointer_mode(handle,old_mode);
     return rocblas_status_success;
