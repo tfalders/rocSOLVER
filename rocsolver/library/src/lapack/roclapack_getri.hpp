@@ -250,10 +250,14 @@ rocblas_status rocsolver_getri_template(rocblas_handle handle, const rocblas_int
     rocblas_int ldw = n;
     rocblas_stride strideW;
 
+    double start;
+
     // compute inv(U)
     strideW = n;
+    start = get_time_us_sync(stream);
     hipLaunchKernelGGL(getri_trtri<T>, dim3(batch_count,1,1), dim3(1,threads,1), 0, stream,
                        n, A, shiftA, lda, strideA, work, 0, ldw, strideW, info);
+    add_time_agg("getri_trtri", get_time_us_sync(stream) - start);
     
     if (n <= nb)
     {
@@ -263,14 +267,18 @@ rocblas_status rocsolver_getri_template(rocblas_handle handle, const rocblas_int
         for (rocblas_int j = n-2; j >= 0; --j)
         {
             rocblas_int blocks = ((n-j) - 1)/64 + 1;
+            start = get_time_us_sync(stream);
             hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks,1), dim3(1,64,1), 0, stream,
                                n-j, 1, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower, info);
+            add_time_agg("copy_and_zero", get_time_us_sync(stream) - start);
 
+            start = get_time_us_sync(stream);
             rocblasCall_gemv(handle, rocblas_operation_none, n, n-j-1,
                              &minone, 0, A, shiftA + idx2D(0,j+1,lda), lda, strideA,
                              work, j+1, 1, strideW,
                              &one, 0, A, shiftA + idx2D(0,j,lda), 1, strideA,
                              batch_count, workArr);
+            add_time_agg("rocblas_gemv", get_time_us_sync(stream) - start);
         }
     }
     else
@@ -285,24 +293,34 @@ rocblas_status rocsolver_getri_template(rocblas_handle handle, const rocblas_int
 
             rocblas_int blocks1 = ((n-j) - 1)/32 + 1;
             rocblas_int blocks2 = (jb - 1)/32 + 1;
+            start = get_time_us_sync(stream);
             hipLaunchKernelGGL(copy_and_zero<T>, dim3(batch_count,blocks1,blocks2), dim3(1,32,32), 0, stream,
                                n-j, jb, A, shiftA + idx2D(j,j,lda), lda, strideA, work, j, ldw, strideW, rocblas_fill_lower, info);
+            add_time_agg("copy_and_zero", get_time_us_sync(stream) - start);
 
             if (j+jb < n)
+            {
+                start = get_time_us_sync(stream);
                 rocblasCall_gemm<BATCHED,STRIDED>(handle, rocblas_operation_none, rocblas_operation_none,
                                                   n, jb, n-j-jb,
                                                   &minone, A, shiftA + idx2D(0,j+jb,lda), lda, strideA,
                                                   work, j+jb, ldw, strideW,
                                                   &one, A, shiftA + idx2D(0,j,lda), lda, strideA,
                                                   batch_count, workArr);
+                add_time_agg("rocblas_gemm", get_time_us_sync(stream) - start);
+            }
             
+            start = get_time_us_sync(stream);
             hipLaunchKernelGGL(getri_trsm<T>, dim3(batch_count,1,1), dim3(1,threads,1), 0, stream,
                        n, jb, A, shiftA + idx2D(0,j,lda), lda, strideA, work, j, ldw, strideW, info);
+            add_time_agg("getri_trsm", get_time_us_sync(stream) - start);
         }
     }
     
+    start = get_time_us_sync(stream);
     hipLaunchKernelGGL(getri_pivot<T>, dim3(batch_count,1,1), dim3(1,1,1), 0, stream,
                        n, A, shiftA, lda, strideA, ipiv, shiftP, strideP, info);
+    add_time_agg("getri_pivot", get_time_us_sync(stream) - start);
 
     rocblas_set_pointer_mode(handle,old_mode);
     return rocblas_status_success;

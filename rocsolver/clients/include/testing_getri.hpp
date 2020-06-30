@@ -234,6 +234,8 @@ void getri_getPerfData(const rocblas_handle handle,
 
         CHECK_ROCBLAS_ERROR(rocsolver_getri(STRIDED,handle, n, dA1.data(), dA.data(), lda, stA, dIpiv.data(), stP, dInfo.data(), bc));
     }
+
+    clear_time_agg();
         
     // gpu-lapack performance
     double start;
@@ -422,6 +424,18 @@ void testing_getri(Arguments argus)
         rocblas_cout << "\n============================================\n";
         rocblas_cout << "Results:\n";
         rocblas_cout << "============================================\n";
+        rocsolver_bench_output("getri_trtri");
+        rocsolver_bench_output(get_calls_agg("getri_trtri") / hot_calls, get_time_agg("getri_trtri") / hot_calls);
+        rocsolver_bench_output("copy_and_zero");
+        rocsolver_bench_output(get_calls_agg("copy_and_zero") / hot_calls, get_time_agg("copy_and_zero") / hot_calls);
+        rocsolver_bench_output("rocblas_gemv");
+        rocsolver_bench_output(get_calls_agg("rocblas_gemv") / hot_calls, get_time_agg("rocblas_gemv") / hot_calls);
+        rocsolver_bench_output("rocblas_gemm");
+        rocsolver_bench_output(get_calls_agg("rocblas_gemm") / hot_calls, get_time_agg("rocblas_gemm") / hot_calls);
+        rocsolver_bench_output("getri_trsm");
+        rocsolver_bench_output(get_calls_agg("getri_trsm") / hot_calls, get_time_agg("getri_trsm") / hot_calls);
+        rocsolver_bench_output("getri_pivot");
+        rocsolver_bench_output(get_calls_agg("getri_pivot") / hot_calls, get_time_agg("getri_pivot") / hot_calls);
         if (argus.norm_check) {
             rocsolver_bench_output("cpu_time", "gpu_time", "error");
             rocsolver_bench_output(cpu_time_used, gpu_time_used, max_error);

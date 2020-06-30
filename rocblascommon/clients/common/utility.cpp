@@ -9,6 +9,10 @@
 #include <cstring>
 #include <regex>
 #include <sys/time.h>
+#include <unordered_map>
+
+std::unordered_map<std::string, int> agg_calls;
+std::unordered_map<std::string, double> agg_times;
 
 
 // Random number generator
@@ -64,6 +68,28 @@ double get_time_us_sync(hipStream_t stream)
     gettimeofday(&tv, NULL);
     return (tv.tv_sec * 1000 * 1000) + tv.tv_usec;
 };
+
+void add_time_agg(std::string name, double time)
+{
+    agg_calls[name]++;
+    agg_times[name] += time;
+}
+
+double get_time_agg(std::string name)
+{
+    return agg_times[name];
+}
+
+int get_calls_agg(std::string name)
+{
+    return agg_calls[name];
+}
+
+void clear_time_agg()
+{
+    agg_calls.clear();
+    agg_times.clear();
+}
 
 /* ============================================================================================ */
 /*  device query and print out their ID and name; return number of compute-capable devices. */

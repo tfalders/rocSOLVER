@@ -93,6 +93,15 @@ double get_time_us(void);
 /*! \brief  CPU Timer(in microsecond): synchronize with given queue/stream and return wall time */
 double get_time_us_sync(hipStream_t stream);
 
+
+void add_time_agg(std::string name, double time);
+
+double get_time_agg(std::string name);
+
+int get_calls_agg(std::string name);
+
+void clear_time_agg();
+
 /* ============================================================================================ */
 // Return path of this executable
 std::string rocblas_exepath();
