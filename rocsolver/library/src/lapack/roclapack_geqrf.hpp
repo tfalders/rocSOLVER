@@ -58,6 +58,8 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle, const rocblas_int
     rocblas_int ldw = GEQRF_GEQR2_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) *ldw;
 
+    double start;
+
     while (j < dim - GEQRF_GEQR2_SWITCHSIZE) {
         // Factor diagonal and subdiagonal blocks 
         jb = min(dim - j, GEQRF_GEQR2_BLOCKSIZE);  //number of columns in the block
@@ -67,18 +69,22 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle, const rocblas_int
         if (j + jb < n) {
             
             //compute block reflector
+            start = get_time_us_sync(stream);
             rocsolver_larft_template<T>(handle, rocblas_forward_direction, 
                                         rocblas_column_wise, m-j, jb, 
                                         A, shiftA + idx2D(j,j,lda), lda, strideA, 
                                         (ipiv + j), strideP,
                                         trfact, ldw, strideW, batch_count, scalars, work, workArr);
+            add_time_agg("rocsolver_larft", get_time_us_sync(stream) - start);
 
             //apply the block reflector
+            start = get_time_us_sync(stream);
             rocsolver_larfb_template<BATCHED,STRIDED,T>(handle,rocblas_side_left,rocblas_operation_conjugate_transpose,rocblas_forward_direction,
                                         rocblas_column_wise,m-j, n-j-jb, jb,
                                         A, shiftA + idx2D(j,j,lda), lda, strideA,
                                         trfact, 0, ldw, strideW,
                                         A, shiftA + idx2D(j,j+jb,lda), lda, strideA, batch_count, work, workArr);
+            add_time_agg("rocsolver_larfb", get_time_us_sync(stream) - start);
 
         }
         j += GEQRF_GEQR2_BLOCKSIZE;

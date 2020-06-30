@@ -62,8 +62,11 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle, const rocblas_int
 
     rocblas_int dim = min(m, n);    //total number of pivots    
 
+    double start;
+
     for (rocblas_int j = 0; j < dim; ++j) {
         // generate Householder reflector to work on column j
+        start = get_time_us_sync(stream);
         rocsolver_larfg_template(handle,
                                  m - j,                                 //order of reflector
                                  A, shiftA + idx2D(j,j,lda),            //value of alpha
@@ -71,16 +74,24 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle, const rocblas_int
                                  1, strideA,                            //inc of x    
                                  (ipiv + j), strideP,                   //tau
                                  batch_count, diag, work);
+        add_time_agg("rocsolver_larfg", get_time_us_sync(stream) - start);
 
         // insert one in A(j,j) tobuild/apply the householder matrix 
+        start = get_time_us_sync(stream);
         hipLaunchKernelGGL(set_diag<T>,dim3(batch_count,1,1),dim3(1,1,1),0,stream,diag,0,1,A,shiftA+idx2D(j,j,lda),lda,strideA,1,true);
+        add_time_agg("set_diag", get_time_us_sync(stream) - start);
         
         // conjugate tau
         if (COMPLEX)
+        {
+            start = get_time_us_sync(stream);
             rocsolver_lacgv_template<T>(handle, 1, ipiv, j, 1, strideP, batch_count);
+            add_time_agg("rocsolver_lacgv", get_time_us_sync(stream) - start);
+        }
 
         // Apply Householder reflector to the rest of matrix from the left 
         if (j < n - 1) {
+            start = get_time_us_sync(stream);
             rocsolver_larf_template(handle,rocblas_side_left,           //side
                                     m - j,                              //number of rows of matrix to modify
                                     n - j - 1,                          //number of columns of matrix to modify    
@@ -90,14 +101,21 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle, const rocblas_int
                                     A, shiftA + idx2D(j,j+1,lda),       //matrix to work on
                                     lda, strideA,                       //leading dimension
                                     batch_count, scalars, work, workArr);
+            add_time_agg("rocsolver_larf", get_time_us_sync(stream) - start);
         }
 
         // restore original value of A(j,j)
+        start = get_time_us_sync(stream);
         hipLaunchKernelGGL(restore_diag<T>,dim3(batch_count,1,1),dim3(1,1,1),0,stream,diag,0,1,A,shiftA+idx2D(j,j,lda),lda,strideA,1);
+        add_time_agg("restore_diag", get_time_us_sync(stream) - start);
         
         // restore tau
         if (COMPLEX)
+        {
+            start = get_time_us_sync(stream);
             rocsolver_lacgv_template<T>(handle, 1, ipiv, j, 1, strideP, batch_count);
+            add_time_agg("rocsolver_lacgv", get_time_us_sync(stream) - start);
+        }
     }
 
     return rocblas_status_success;

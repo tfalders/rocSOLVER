@@ -210,6 +210,8 @@ void geqr2_geqrf_getPerfData(const rocblas_handle handle,
 
         CHECK_ROCBLAS_ERROR(rocsolver_geqr2_geqrf(STRIDED,GEQRF,handle, m, n, dA.data(), lda, stA, dIpiv.data(), stP, bc));
     }
+
+    clear_time_agg();
         
     // gpu-lapack performance
     double start;
@@ -386,6 +388,20 @@ void testing_geqr2_geqrf(Arguments argus)
         rocblas_cout << "\n============================================\n";
         rocblas_cout << "Results:\n";
         rocblas_cout << "============================================\n";
+        rocsolver_bench_output("rocsolver_larfg");
+        rocsolver_bench_output(get_calls_agg("rocsolver_larfg") / hot_calls, get_time_agg("rocsolver_larfg") / hot_calls);
+        rocsolver_bench_output("set_diag");
+        rocsolver_bench_output(get_calls_agg("set_diag") / hot_calls, get_time_agg("set_diag") / hot_calls);
+        rocsolver_bench_output("rocsolver_lacgv");
+        rocsolver_bench_output(get_calls_agg("rocsolver_lacgv") / hot_calls, get_time_agg("rocsolver_lacgv") / hot_calls);
+        rocsolver_bench_output("rocsolver_larf");
+        rocsolver_bench_output(get_calls_agg("rocsolver_larf") / hot_calls, get_time_agg("rocsolver_larf") / hot_calls);
+        rocsolver_bench_output("restore_diag");
+        rocsolver_bench_output(get_calls_agg("restore_diag") / hot_calls, get_time_agg("restore_diag") / hot_calls);
+        rocsolver_bench_output("rocsolver_larft");
+        rocsolver_bench_output(get_calls_agg("rocsolver_larft") / hot_calls, get_time_agg("rocsolver_larft") / hot_calls);
+        rocsolver_bench_output("rocsolver_larfb");
+        rocsolver_bench_output(get_calls_agg("rocsolver_larfb") / hot_calls, get_time_agg("rocsolver_larfb") / hot_calls);
         if (argus.norm_check) {
             rocsolver_bench_output("cpu_time", "gpu_time", "error");
             rocsolver_bench_output(cpu_time_used, gpu_time_used, max_error);
