@@ -223,6 +223,8 @@ void getf2_getrf_getPerfData(const rocblas_handle handle,
 
         CHECK_ROCBLAS_ERROR(rocsolver_getf2_getrf(STRIDED,GETRF,handle, m, n, dA.data(), lda, stA, dIpiv.data(), stP, dinfo.data(), bc, pivot));
     }
+
+    clear_time_agg();
         
     // gpu-lapack performance
     double start;
@@ -375,6 +377,24 @@ void testing_getf2_getrf(Arguments argus)
             rocblas_cout << "\n============================================\n";
             rocblas_cout << "Results:\n";
             rocblas_cout << "============================================\n";
+            rocsolver_bench_output("reset_info");
+            rocsolver_bench_output(get_calls_agg("reset_info") / hot_calls, get_time_agg("reset_info") / hot_calls);
+            rocsolver_bench_output("rocblas_iamax");
+            rocsolver_bench_output(get_calls_agg("rocblas_iamax") / hot_calls, get_time_agg("rocblas_iamax") / hot_calls);
+            rocsolver_bench_output("getf2_check_singularity");
+            rocsolver_bench_output(get_calls_agg("getf2_check_singularity") / hot_calls, get_time_agg("getf2_check_singularity") / hot_calls);
+            rocsolver_bench_output("rocsolver_laswp");
+            rocsolver_bench_output(get_calls_agg("rocsolver_laswp") / hot_calls, get_time_agg("rocsolver_laswp") / hot_calls);
+            rocsolver_bench_output("rocblas_scal");
+            rocsolver_bench_output(get_calls_agg("rocblas_scal") / hot_calls, get_time_agg("rocblas_scal") / hot_calls);
+            rocsolver_bench_output("rocblas_ger");
+            rocsolver_bench_output(get_calls_agg("rocblas_ger") / hot_calls, get_time_agg("rocblas_ger") / hot_calls);
+            rocsolver_bench_output("getrf_check_singularity");
+            rocsolver_bench_output(get_calls_agg("getrf_check_singularity") / hot_calls, get_time_agg("getrf_check_singularity") / hot_calls);
+            rocsolver_bench_output("rocblas_trsm");
+            rocsolver_bench_output(get_calls_agg("rocblas_trsm") / hot_calls, get_time_agg("rocblas_trsm") / hot_calls);
+            rocsolver_bench_output("rocblas_gemm");
+            rocsolver_bench_output(get_calls_agg("rocblas_gemm") / hot_calls, get_time_agg("rocblas_gemm") / hot_calls);
             if (argus.norm_check) {
                 rocsolver_bench_output("cpu_time", "gpu_time", "error");
                 rocsolver_bench_output(cpu_time_used, gpu_time_used, max_error);

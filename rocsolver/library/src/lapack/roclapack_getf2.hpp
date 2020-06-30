@@ -353,9 +353,13 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle, const rocblas_int
     dim3 threads(GETF2_BLOCKSIZE, 1, 1);
     rocblas_int dim = min(m, n);    //total number of pivots
     T* M;
+
+    double start;
     
     // info=0 (starting with a nonsingular matrix)
+    start = get_time_us_sync(stream);
     hipLaunchKernelGGL(reset_info,gridReset,threads,0,stream,info,batch_count,0);
+    add_time_agg("reset_info", get_time_us_sync(stream) - start);
 
     // quick return if no dimensions
     if (m == 0 || n == 0) 
@@ -387,29 +391,39 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle, const rocblas_int
 
     for (rocblas_int j = 0; j < dim; ++j) {
         // find pivot. Use Fortran 1-based indexing for the ipiv array as iamax does that as well!
+        start = get_time_us_sync(stream);
         for (int b=0;b<batch_count;++b) {
             M = load_ptr_batch<T>(AA,b,shiftA,strideA);
             rocblas_iamax(handle, m - j, (M + idx2D(j, j, lda)), 1, 
                         (ipiv + shiftP + b*strideP + j));
         }
+        add_time_agg("rocblas_iamax", get_time_us_sync(stream) - start);
 
         // adjust pivot indices and check singularity
+        start = get_time_us_sync(stream);
         hipLaunchKernelGGL(getf2_check_singularity<T>, dim3(batch_count), dim3(1), 0, stream,
                   A, shiftA, strideA, ipiv, shiftP, strideP, j, lda, pivotGPU, info);
+        add_time_agg("getf2_check_singularity", get_time_us_sync(stream) - start);
 
         // Swap pivot row and j-th row 
+        start = get_time_us_sync(stream);
         rocsolver_laswp_template<T>(handle, n, A, shiftA, lda, strideA, j+1, j+1, ipiv, shiftP, strideP, 1, batch_count);
+        add_time_agg("rocsolver_laswp", get_time_us_sync(stream) - start);
 
         // Compute elements J+1:M of J'th column
+        start = get_time_us_sync(stream);
         rocblasCall_scal<T>(handle, m-j-1, pivotGPU, 1, A, shiftA+idx2D(j+1, j, lda), 1, strideA, batch_count);
+        add_time_agg("rocblas_scal", get_time_us_sync(stream) - start);
 
         // update trailing submatrix
         if (j < min(m, n) - 1) {
+            start = get_time_us_sync(stream);
             rocblasCall_ger<false,T>(handle, m-j-1, n-j-1, scalars, 0,
                                  A, shiftA+idx2D(j+1, j, lda), 1, strideA, 
                                  A, shiftA+idx2D(j, j+1, lda), lda, strideA, 
                                  A, shiftA+idx2D(j+1, j+1, lda), lda, strideA,
                                  batch_count,nullptr); 
+            add_time_agg("rocblas_ger", get_time_us_sync(stream) - start);
         }
     }
 

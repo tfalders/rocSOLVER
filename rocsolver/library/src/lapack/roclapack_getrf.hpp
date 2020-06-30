@@ -87,8 +87,12 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle, const rocblas_int
     T* M;
     rocblas_int jb, sizePivot;
 
+    double start;
+
     //info=0 (starting with a nonsingular matrix)
+    start = get_time_us_sync(stream);
     hipLaunchKernelGGL(reset_info,gridReset,threads,0,stream,info,batch_count,0);
+    add_time_agg("reset_info", get_time_us_sync(stream) - start);
 
     // **** TRSM_BATCH IS EXECUTED IN A FOR-LOOP UNTIL 
     //      FUNCITONALITY IS ENABLED. ****
@@ -96,40 +100,52 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle, const rocblas_int
     for (rocblas_int j = 0; j < dim; j += GETRF_GETF2_SWITCHSIZE) {
         // Factor diagonal and subdiagonal blocks 
         jb = min(dim - j, GETRF_GETF2_SWITCHSIZE);  //number of columns in the block
+        start = get_time_us_sync(stream);
         hipLaunchKernelGGL(reset_info,gridReset,threads,0,stream,iinfo,batch_count,0);
+        add_time_agg("reset_info", get_time_us_sync(stream) - start);
         rocsolver_getf2_template<T>(handle, m - j, jb, A, shiftA + idx2D(j, j, lda), lda, strideA, ipiv, shiftP + j, strideP, iinfo, batch_count, 1, scalars, pivotGPU);
         
         // adjust pivot indices and check singularity
         sizePivot = min(m - j, jb);     //number of pivots in the block
         blocksPivot = (sizePivot - 1) / GETF2_BLOCKSIZE + 1; 
         gridPivot = dim3(blocksPivot, batch_count, 1);
+        start = get_time_us_sync(stream);
         hipLaunchKernelGGL(getrf_check_singularity<U>,gridPivot,threads,0,stream,
 			   sizePivot,j,ipiv,shiftP + j,strideP,iinfo,info);
+        add_time_agg("getrf_check_singularity", get_time_us_sync(stream) - start);
 
         // apply interchanges to columns 1 : j-1
+        start = get_time_us_sync(stream);
         rocsolver_laswp_template<T>(handle, j, A, shiftA, lda, strideA, j + 1, j + jb, ipiv, shiftP, strideP, 1, batch_count);
+        add_time_agg("rocsolver_laswp", get_time_us_sync(stream) - start);
 
         if (j + jb < n) {
             // apply interchanges to columns j+jb : n
+            start = get_time_us_sync(stream);
             rocsolver_laswp_template<T>(handle, (n - j - jb), A,
                                   shiftA + idx2D(0, j + jb, lda), lda, strideA, j + 1, j + jb,
                                   ipiv, shiftP, strideP, 1, batch_count);
+            add_time_agg("rocsolver_laswp", get_time_us_sync(stream) - start);
 
             // compute block row of U
+            start = get_time_us_sync(stream);
             for (int b=0;b<batch_count;++b) {
                 M = load_ptr_batch<T>(AA,b,shiftA,strideA);
                 rocblas_trsm(handle, rocblas_side_left, rocblas_fill_lower, rocblas_operation_none,
                              rocblas_diagonal_unit, jb, (n - j - jb), &one,
                              (M + idx2D(j, j, lda)), lda, (M + idx2D(j, j + jb, lda)), lda);
             }
+            add_time_agg("rocblas_trsm", get_time_us_sync(stream) - start);
 
             // update trailing submatrix
             if (j + jb < m) {
+                start = get_time_us_sync(stream);
                 rocblasCall_gemm<BATCHED,STRIDED,T>(handle, rocblas_operation_none, rocblas_operation_none,
                                                 m - j - jb, n - j - jb, jb, &minone,
                                                 A, shiftA+idx2D(j + jb, j, lda), lda, strideA,
                                                 A, shiftA+idx2D(j, j + jb, lda), lda, strideA, &one,
                                                 A, shiftA+idx2D(j + jb, j + jb, lda), lda, strideA, batch_count, nullptr);
+                add_time_agg("rocblas_gemm", get_time_us_sync(stream) - start);
             }
         } 
     }
