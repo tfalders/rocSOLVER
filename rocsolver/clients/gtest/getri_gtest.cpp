@@ -13,7 +13,7 @@ using namespace std;
 
 typedef vector<int> getri_tuple;
 
-// each matrix_size_range vector is a {n, lda}
+// each matrix_size_range vector is a {n, lda, singular}
 
 // case when n = 0 will also execute the bad arguments test
 // (null handle, null pointers and invalid values)
@@ -21,19 +21,22 @@ typedef vector<int> getri_tuple;
 // for checkin_lapack tests
 const vector<vector<int>> matrix_size_range = {
     // quick return
-    {0, 1},
+    {0, 1, 0},
     // invalid
-    {-1, 1},
-    {20, 5},
+    {-1, 1, 0},
+    {20, 5, 0},
     // normal (valid) samples
-    {32, 32},
-    {50, 50},
-    {70, 100},
-    {100, 150}};
+    {32, 32, 0},
+    {50, 50, 1},
+    {70, 100, 0},
+    {100, 150, 1}};
 
 // for daily_lapack tests
-const vector<vector<int>> large_matrix_size_range = {
-    {192, 192}, {500, 600}, {640, 640}, {1000, 1024}, {1200, 1230}};
+const vector<vector<int>> large_matrix_size_range = {{192, 192, 0},
+                                                     {500, 600, 1},
+                                                     {640, 640, 0},
+                                                     {1000, 1024, 1},
+                                                     {1200, 1230, 0}};
 
 Arguments getri_setup_arguments(getri_tuple tup) {
   // vector<int> matrix_size = std::get<0>(tup);
@@ -44,6 +47,7 @@ Arguments getri_setup_arguments(getri_tuple tup) {
   arg.lda = tup[1];
 
   arg.timing = 0;
+  arg.singular = tup[2];
 
   // only testing standard use case for strides
   // strides are ignored in normal and batched tests
@@ -69,6 +73,10 @@ TEST_P(GETRI, __float) {
     testing_getri_bad_arg<false, false, float>();
 
   arg.batch_count = 1;
+  if (arg.singular == 1)
+    testing_getri<false, false, float>(arg);
+
+  arg.singular = 0;
   testing_getri<false, false, float>(arg);
 }
 
@@ -79,6 +87,10 @@ TEST_P(GETRI, __double) {
     testing_getri_bad_arg<false, false, double>();
 
   arg.batch_count = 1;
+  if (arg.singular == 1)
+    testing_getri<false, false, double>(arg);
+
+  arg.singular = 0;
   testing_getri<false, false, double>(arg);
 }
 
@@ -89,6 +101,10 @@ TEST_P(GETRI, __float_complex) {
     testing_getri_bad_arg<false, false, rocblas_float_complex>();
 
   arg.batch_count = 1;
+  if (arg.singular == 1)
+    testing_getri<false, false, rocblas_float_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<false, false, rocblas_float_complex>(arg);
 }
 
@@ -99,6 +115,10 @@ TEST_P(GETRI, __double_complex) {
     testing_getri_bad_arg<false, false, rocblas_double_complex>();
 
   arg.batch_count = 1;
+  if (arg.singular == 1)
+    testing_getri<false, false, rocblas_double_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<false, false, rocblas_double_complex>(arg);
 }
 
@@ -111,6 +131,10 @@ TEST_P(GETRI, batched__float) {
     testing_getri_bad_arg<true, true, float>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, true, float>(arg);
+
+  arg.singular = 0;
   testing_getri<true, true, float>(arg);
 }
 
@@ -121,6 +145,10 @@ TEST_P(GETRI, batched__double) {
     testing_getri_bad_arg<true, true, double>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, true, double>(arg);
+
+  arg.singular = 0;
   testing_getri<true, true, double>(arg);
 }
 
@@ -131,6 +159,10 @@ TEST_P(GETRI, batched__float_complex) {
     testing_getri_bad_arg<true, true, rocblas_float_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, true, rocblas_float_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<true, true, rocblas_float_complex>(arg);
 }
 
@@ -141,6 +173,10 @@ TEST_P(GETRI, batched__double_complex) {
     testing_getri_bad_arg<true, true, rocblas_double_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, true, rocblas_double_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<true, true, rocblas_double_complex>(arg);
 }
 
@@ -153,6 +189,10 @@ TEST_P(GETRI, strided_batched__float) {
     testing_getri_bad_arg<false, true, float>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<false, true, float>(arg);
+
+  arg.singular = 0;
   testing_getri<false, true, float>(arg);
 }
 
@@ -163,6 +203,10 @@ TEST_P(GETRI, strided_batched__double) {
     testing_getri_bad_arg<false, true, double>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<false, true, double>(arg);
+
+  arg.singular = 0;
   testing_getri<false, true, double>(arg);
 }
 
@@ -173,6 +217,10 @@ TEST_P(GETRI, strided_batched__float_complex) {
     testing_getri_bad_arg<false, true, rocblas_float_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<false, true, rocblas_float_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<false, true, rocblas_float_complex>(arg);
 }
 
@@ -183,6 +231,10 @@ TEST_P(GETRI, strided_batched__double_complex) {
     testing_getri_bad_arg<false, true, rocblas_double_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<false, true, rocblas_double_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<false, true, rocblas_double_complex>(arg);
 }
 
@@ -195,6 +247,10 @@ TEST_P(GETRI, outofplace_batched__float) {
     testing_getri_bad_arg<true, false, float>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, false, float>(arg);
+
+  arg.singular = 0;
   testing_getri<true, false, float>(arg);
 }
 
@@ -205,6 +261,10 @@ TEST_P(GETRI, outofplace_batched__double) {
     testing_getri_bad_arg<true, false, double>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, false, double>(arg);
+
+  arg.singular = 0;
   testing_getri<true, false, double>(arg);
 }
 
@@ -215,6 +275,10 @@ TEST_P(GETRI, outofplace_batched__float_complex) {
     testing_getri_bad_arg<true, false, rocblas_float_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, false, rocblas_float_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<true, false, rocblas_float_complex>(arg);
 }
 
@@ -225,6 +289,10 @@ TEST_P(GETRI, outofplace_batched__double_complex) {
     testing_getri_bad_arg<true, false, rocblas_double_complex>();
 
   arg.batch_count = 3;
+  if (arg.singular == 1)
+    testing_getri<true, false, rocblas_double_complex>(arg);
+
+  arg.singular = 0;
   testing_getri<true, false, rocblas_double_complex>(arg);
 }
 
