@@ -15,36 +15,36 @@ void bdsqr_checkBadArgs(const rocblas_handle handle, const rocblas_fill uplo,
                         const rocblas_int nu, const rocblas_int nc, S dD, S dE,
                         T dV, const rocblas_int ldv, T dU,
                         const rocblas_int ldu, T dC, const rocblas_int ldc,
-                        rocblas_int *dinfo) {
+                        rocblas_int *dInfo) {
   // handle
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(nullptr, uplo, n, nv, nu, nc, dD, dE,
-                                        dV, ldv, dU, ldu, dC, ldc, dinfo),
+                                        dV, ldv, dU, ldu, dC, ldc, dInfo),
                         rocblas_status_invalid_handle);
 
   // values
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, rocblas_fill_full, n, nv, nu,
                                         nc, dD, dE, dV, ldv, dU, ldu, dC, ldc,
-                                        dinfo),
+                                        dInfo),
                         rocblas_status_invalid_value);
 
   // pointers
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc,
                                         (S) nullptr, dE, dV, ldv, dU, ldu, dC,
-                                        ldc, dinfo),
+                                        ldc, dInfo),
                         rocblas_status_invalid_pointer);
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD,
                                         (S) nullptr, dV, ldv, dU, ldu, dC, ldc,
-                                        dinfo),
+                                        dInfo),
                         rocblas_status_invalid_pointer);
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD, dE,
                                         (T) nullptr, ldv, dU, ldu, dC, ldc,
-                                        dinfo),
+                                        dInfo),
                         rocblas_status_invalid_pointer);
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                        ldv, (T) nullptr, ldu, dC, ldc, dinfo),
+                                        ldv, (T) nullptr, ldu, dC, ldc, dInfo),
                         rocblas_status_invalid_pointer);
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                        ldv, dU, ldu, (T) nullptr, ldc, dinfo),
+                                        ldv, dU, ldu, (T) nullptr, ldc, dInfo),
                         rocblas_status_invalid_pointer);
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD, dE, dV,
                                         ldv, dU, ldu, dC, ldc,
@@ -55,7 +55,7 @@ void bdsqr_checkBadArgs(const rocblas_handle handle, const rocblas_fill uplo,
   EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, 0, nv, nu, nc,
                                         (S) nullptr, (S) nullptr, (T) nullptr,
                                         ldv, (T) nullptr, ldu, (T) nullptr, ldc,
-                                        dinfo),
+                                        dInfo),
                         rocblas_status_success);
 }
 
@@ -79,13 +79,13 @@ template <typename T> void testing_bdsqr_bad_arg() {
   device_strided_batch_vector<T> dV(1, 1, 1, 1);
   device_strided_batch_vector<T> dU(1, 1, 1, 1);
   device_strided_batch_vector<T> dC(1, 1, 1, 1);
-  device_strided_batch_vector<rocblas_int> dinfo(1, 1, 1, 1);
+  device_strided_batch_vector<rocblas_int> dInfo(1, 1, 1, 1);
   CHECK_HIP_ERROR(dD.memcheck());
   CHECK_HIP_ERROR(dE.memcheck());
   CHECK_HIP_ERROR(dV.memcheck());
   CHECK_HIP_ERROR(dU.memcheck());
   CHECK_HIP_ERROR(dC.memcheck());
-  CHECK_HIP_ERROR(dinfo.memcheck());
+  CHECK_HIP_ERROR(dInfo.memcheck());
 
   // check bad arguments
   rocblas_cerr << " "
@@ -93,7 +93,7 @@ template <typename T> void testing_bdsqr_bad_arg() {
                               // case is running the bad arguments check.
   bdsqr_checkBadArgs(handle, uplo, n, nv, nu, nc, dD.data(), dE.data(),
                      dV.data(), ldv, dU.data(), ldu, dC.data(), ldc,
-                     dinfo.data());
+                     dInfo.data());
 }
 
 template <bool CPU, bool GPU, typename S, typename T, typename Sd, typename Td,
@@ -103,8 +103,9 @@ void bdsqr_initData(const rocblas_handle handle, const rocblas_fill uplo,
                     const rocblas_int nu, const rocblas_int nc, Sd &dD, Sd &dE,
                     Td &dV, const rocblas_int ldv, Td &dU,
                     const rocblas_int ldu, Td &dC, const rocblas_int ldc,
-                    Ud &dinfo, Sh &hD, Sh &hE, Th &hV, Th &hU, Th &hC,
-                    Uh &hinfo, std::vector<S> &D, std::vector<S> &E) {
+                    Ud &dInfo, Sh &hD, Sh &hE, Th &hV, Th &hU, Th &hC,
+                    Uh &hInfo, std::vector<S> &D, std::vector<S> &E,
+                    const bool singular) {
   if (CPU) {
     rocblas_init<S>(hD, true);
     rocblas_init<S>(hE, false);
@@ -164,9 +165,9 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
                     const rocblas_int nu, const rocblas_int nc, Sd &dD, Sd &dE,
                     Td &dV, const rocblas_int ldv, Td &dU,
                     const rocblas_int ldu, Td &dC, const rocblas_int ldc,
-                    Ud &dinfo, Sh &hD, Sh &hDres, Sh &hE, Sh &hEres, Th &hV,
-                    Th &hU, Th &hC, Uh &hinfo, double *max_err,
-                    double *max_errv) {
+                    Ud &dInfo, Sh &hD, Sh &hDRes, Sh &hE, Sh &hERes, Th &hV,
+                    Th &hU, Th &hC, Uh &hInfo, Uh &hInfoRes, double *max_err,
+                    double *max_errv, const bool singular) {
   using S = decltype(std::real(T{}));
   std::vector<S> hW(4 * n);
   std::vector<S> D(nv);
@@ -174,20 +175,21 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
 
   // input data initialization
   bdsqr_initData<true, true, S, T>(handle, uplo, n, nv, nu, nc, dD, dE, dV, ldv,
-                                   dU, ldu, dC, ldc, dinfo, hD, hE, hV, hU, hC,
-                                   hinfo, D, E);
+                                   dU, ldu, dC, ldc, dInfo, hD, hE, hV, hU, hC,
+                                   hInfo, D, E, singular);
 
   // execute computations
   // CPU lapack
   cblas_bdsqr<T>(uplo, n, nv, nu, nc, hD[0], hE[0], hV[0], ldv, hU[0], ldu,
-                 hC[0], ldc, hW.data(), hinfo[0]);
+                 hC[0], ldc, hW.data(), hInfo[0]);
 
   // GPU lapack
   CHECK_ROCBLAS_ERROR(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD.data(),
                                       dE.data(), dV.data(), ldv, dU.data(), ldu,
-                                      dC.data(), ldc, dinfo.data()));
-  CHECK_HIP_ERROR(hDres.transfer_from(dD));
-  CHECK_HIP_ERROR(hEres.transfer_from(dE));
+                                      dC.data(), ldc, dInfo.data()));
+  CHECK_HIP_ERROR(hDRes.transfer_from(dD));
+  CHECK_HIP_ERROR(hERes.transfer_from(dE));
+  CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
   if (nv > 0)
     CHECK_HIP_ERROR(hV.transfer_from(dV));
   if (nu > 0)
@@ -195,20 +197,20 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
   if (nc > 0)
     CHECK_HIP_ERROR(hC.transfer_from(dC));
 
-  // error is ||hD - hDres||
+  // error is ||hD - hDRes||
   // (THIS DOES NOT ACCOUNT FOR NUMERICAL REPRODUCIBILITY ISSUES.
   // IT MIGHT BE REVISITED IN THE FUTURE)
   double err;
   T tmp;
   *max_err = 0;
   *max_errv = 0;
-  err = norm_error('F', 1, n, 1, hD[0], hDres[0]);
+  err = norm_error('F', 1, n, 1, hD[0], hDRes[0]);
   *max_err = err > *max_err ? err : *max_err;
 
   // if algorithm converged, check the singular vectors if required
   // otherwise, check E
-  if (hinfo[0][0] > 0) {
-    err = norm_error('F', 1, n - 1, 1, hE[0], hEres[0]);
+  if (hInfo[0][0] > 0) {
+    err = norm_error('F', 1, n - 1, 1, hE[0], hERes[0]);
     *max_err = err > *max_err ? err : *max_err;
   }
 
@@ -222,9 +224,9 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
           if (i > 0)
             tmp = D[i] * hU[0][i + j * ldu] +
                   E[i - 1] * hU[0][(i - 1) + j * ldu] -
-                  hDres[0][j] * hV[0][j + i * ldv];
+                  hDRes[0][j] * hV[0][j + i * ldv];
           else
-            tmp = D[i] * hU[0][i + j * ldu] - hDres[0][j] * hV[0][j + i * ldv];
+            tmp = D[i] * hU[0][i + j * ldu] - hDRes[0][j] * hV[0][j + i * ldv];
           err += std::abs(tmp) * std::abs(tmp);
         }
       }
@@ -235,9 +237,9 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
           if (i > 0)
             tmp = D[i] * hV[0][j + i * ldv] +
                   E[i - 1] * hV[0][j + (i - 1) * ldv] -
-                  hDres[0][j] * hU[0][i + j * ldu];
+                  hDRes[0][j] * hU[0][i + j * ldu];
           else
-            tmp = D[i] * hV[0][j + i * ldv] - hDres[0][j] * hU[0][i + j * ldu];
+            tmp = D[i] * hV[0][j + i * ldv] - hDRes[0][j] * hU[0][i + j * ldu];
           err += std::abs(tmp) * std::abs(tmp);
         }
       }
@@ -260,6 +262,12 @@ void bdsqr_getError(const rocblas_handle handle, const rocblas_fill uplo,
       *max_errv = err > *max_errv ? err : *max_errv;
     }
   }
+
+  // also check info for singularities
+  err = 0;
+  if (hInfo[0][0] < singular) // || hInfo[0][0] != hInfoRes[0][0])
+    err++;
+  *max_err = err > *max_err ? err : *max_err;
 }
 
 template <typename T, typename Sd, typename Td, typename Ud, typename Sh,
@@ -269,9 +277,10 @@ void bdsqr_getPerfData(const rocblas_handle handle, const rocblas_fill uplo,
                        const rocblas_int nu, const rocblas_int nc, Sd &dD,
                        Sd &dE, Td &dV, const rocblas_int ldv, Td &dU,
                        const rocblas_int ldu, Td &dC, const rocblas_int ldc,
-                       Ud &dinfo, Sh &hD, Sh &hE, Th &hV, Th &hU, Th &hC,
-                       Uh &hinfo, double *gpu_time_used, double *cpu_time_used,
-                       const rocblas_int hot_calls, const bool perf) {
+                       Ud &dInfo, Sh &hD, Sh &hE, Th &hV, Th &hU, Th &hC,
+                       Uh &hInfo, double *gpu_time_used, double *cpu_time_used,
+                       const rocblas_int hot_calls, const bool perf,
+                       const bool singular) {
   using S = decltype(std::real(T{}));
   std::vector<S> hW(4 * n);
   std::vector<S> D(nv);
@@ -279,42 +288,42 @@ void bdsqr_getPerfData(const rocblas_handle handle, const rocblas_fill uplo,
 
   if (!perf) {
     bdsqr_initData<true, false, S, T>(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                      ldv, dU, ldu, dC, ldc, dinfo, hD, hE, hV,
-                                      hU, hC, hinfo, D, E);
+                                      ldv, dU, ldu, dC, ldc, dInfo, hD, hE, hV,
+                                      hU, hC, hInfo, D, E, singular);
 
     // cpu-lapack performance (only if not in perf mode)
     *cpu_time_used = get_time_us();
     cblas_bdsqr<T>(uplo, n, nv, nu, nc, hD[0], hE[0], hV[0], ldv, hU[0], ldu,
-                   hC[0], ldc, hW.data(), hinfo[0]);
+                   hC[0], ldc, hW.data(), hInfo[0]);
     *cpu_time_used = get_time_us() - *cpu_time_used;
   }
 
   bdsqr_initData<true, false, S, T>(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                    ldv, dU, ldu, dC, ldc, dinfo, hD, hE, hV,
-                                    hU, hC, hinfo, D, E);
+                                    ldv, dU, ldu, dC, ldc, dInfo, hD, hE, hV,
+                                    hU, hC, hInfo, D, E, singular);
 
   // cold calls
   for (int iter = 0; iter < 2; iter++) {
     bdsqr_initData<false, true, S, T>(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                      ldv, dU, ldu, dC, ldc, dinfo, hD, hE, hV,
-                                      hU, hC, hinfo, D, E);
+                                      ldv, dU, ldu, dC, ldc, dInfo, hD, hE, hV,
+                                      hU, hC, hInfo, D, E, singular);
 
     CHECK_ROCBLAS_ERROR(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD.data(),
                                         dE.data(), dV.data(), ldv, dU.data(),
-                                        ldu, dC.data(), ldc, dinfo.data()));
+                                        ldu, dC.data(), ldc, dInfo.data()));
   }
 
   // gpu-lapack performance
   double start;
   for (rocblas_int iter = 0; iter < hot_calls; iter++) {
     bdsqr_initData<false, true, S, T>(handle, uplo, n, nv, nu, nc, dD, dE, dV,
-                                      ldv, dU, ldu, dC, ldc, dinfo, hD, hE, hV,
-                                      hU, hC, hinfo, D, E);
+                                      ldv, dU, ldu, dC, ldc, dInfo, hD, hE, hV,
+                                      hU, hC, hInfo, D, E, singular);
 
     start = get_time_us();
     rocsolver_bdsqr(handle, uplo, n, nv, nu, nc, dD.data(), dE.data(),
                     dV.data(), ldv, dU.data(), ldu, dC.data(), ldc,
-                    dinfo.data());
+                    dInfo.data());
     *gpu_time_used += get_time_us() - start;
   }
   *gpu_time_used /= hot_calls;
@@ -405,22 +414,22 @@ template <typename T> void testing_bdsqr(Arguments argus) {
   // memory allocations
   host_strided_batch_vector<S> hD(size_D, 1, size_D, 1);
   host_strided_batch_vector<S> hE(size_E, 1, size_E, 1);
-  host_strided_batch_vector<rocblas_int> hinfo(1, 1, 1, 1);
+  host_strided_batch_vector<rocblas_int> hInfo(1, 1, 1, 1);
   device_strided_batch_vector<S> dD(size_D, 1, size_D, 1);
   device_strided_batch_vector<S> dE(size_E, 1, size_E, 1);
-  device_strided_batch_vector<rocblas_int> dinfo(1, 1, 1, 1);
+  device_strided_batch_vector<rocblas_int> dInfo(1, 1, 1, 1);
   if (size_D)
     CHECK_HIP_ERROR(dD.memcheck());
   if (size_E)
     CHECK_HIP_ERROR(dE.memcheck());
-  CHECK_HIP_ERROR(dinfo.memcheck());
+  CHECK_HIP_ERROR(dInfo.memcheck());
 
   // check quick return
   if (n == 0) {
     EXPECT_ROCBLAS_STATUS(rocsolver_bdsqr(handle, uplo, n, nv, nu, nc,
                                           dD.data(), dE.data(), (T *)nullptr,
                                           ldv, (T *)nullptr, ldu, (T *)nullptr,
-                                          ldc, dinfo.data()),
+                                          ldc, dInfo.data()),
                           rocblas_status_success);
     if (argus.timing)
       ROCSOLVER_BENCH_INFORM(0);
@@ -430,11 +439,12 @@ template <typename T> void testing_bdsqr(Arguments argus) {
 
   // check computations
   if (argus.unit_check || argus.norm_check) {
-    host_strided_batch_vector<S> hDres(size_D, 1, size_D, 1);
-    host_strided_batch_vector<S> hEres(size_E, 1, size_E, 1);
+    host_strided_batch_vector<S> hDRes(size_D, 1, size_D, 1);
+    host_strided_batch_vector<S> hERes(size_E, 1, size_E, 1);
     host_strided_batch_vector<T> hV(size_VT, 1, size_VT, 1);
     host_strided_batch_vector<T> hU(size_UT, 1, size_UT, 1);
     host_strided_batch_vector<T> hC(size_CT, 1, size_CT, 1);
+    host_strided_batch_vector<rocblas_int> hInfoRes(1, 1, 1, 1);
     device_strided_batch_vector<T> dV(size_VT, 1, size_VT, 1);
     device_strided_batch_vector<T> dU(size_UT, 1, size_UT, 1);
     device_strided_batch_vector<T> dC(size_CT, 1, size_CT, 1);
@@ -446,8 +456,8 @@ template <typename T> void testing_bdsqr(Arguments argus) {
       CHECK_HIP_ERROR(dC.memcheck());
 
     bdsqr_getError<T>(handle, uplo, n, nvT, nuT, ncT, dD, dE, dV, ldvT, dU,
-                      lduT, dC, ldcT, dinfo, hD, hDres, hE, hEres, hV, hU, hC,
-                      hinfo, &max_error, &max_errorv);
+                      lduT, dC, ldcT, dInfo, hD, hDRes, hE, hERes, hV, hU, hC,
+                      hInfo, hInfoRes, &max_error, &max_errorv, argus.singular);
   }
 
   // collect performance data
@@ -466,8 +476,9 @@ template <typename T> void testing_bdsqr(Arguments argus) {
       CHECK_HIP_ERROR(dC.memcheck());
 
     bdsqr_getPerfData<T>(handle, uplo, n, nv, nu, nc, dD, dE, dV, ldv, dU, ldu,
-                         dC, ldc, dinfo, hD, hE, hV, hU, hC, hinfo,
-                         &gpu_time_used, &cpu_time_used, hot_calls, argus.perf);
+                         dC, ldc, dInfo, hD, hE, hV, hU, hC, hInfo,
+                         &gpu_time_used, &cpu_time_used, hot_calls, argus.perf,
+                         argus.singular);
   }
 
   // validate results for rocsolver-test
