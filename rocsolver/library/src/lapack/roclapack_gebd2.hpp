@@ -20,13 +20,25 @@
 template <typename T, bool BATCHED>
 void rocsolver_gebd2_getMemorySize(const rocblas_int m, const rocblas_int n,
                                    const rocblas_int batch_count,
-                                   size_t *size_1, size_t *size_2,
-                                   size_t *size_3, size_t *size_4) {
-  size_t s1, s2;
-  rocsolver_larf_getMemorySize<T, BATCHED>(m, n, batch_count, size_1, &s1,
-                                           size_3);
-  rocsolver_larfg_getMemorySize<T>(m, n, batch_count, size_4, &s2);
-  *size_2 = max(s1, s2);
+                                   size_t *size_scalars,
+                                   size_t *size_work_workArr,
+                                   size_t *size_Abyx_norms) {
+  // if quick return no workspace needed
+  if (m == 0 || n == 0 || batch_count == 0) {
+    *size_scalars = 0;
+    *size_work_workArr = 0;
+    *size_Abyx_norms = 0;
+    return;
+  }
+
+  // size of Abyx_norms is maximum of what is needed by larf and larfg
+  // size_work_workArr is maximum of re-usable work space and array of pointers to workspace
+  size_t s1, s2, w1, w2;
+  rocsolver_larf_getMemorySize<T, BATCHED>(rocblas_side_both, m, n, batch_count,
+                                           size_scalars, &s1, &w1);
+  rocsolver_larfg_getMemorySize<T>(max(m, n), batch_count, &w2, &s2);
+  *size_work_workArr = max(w1, w2);
+  *size_Abyx_norms = max(s1, s2);
 }
 
 template <typename S, typename T, typename U>
@@ -58,7 +70,7 @@ rocblas_status rocsolver_gebd2_template(
     const rocblas_stride strideA, S *D, const rocblas_stride strideD, S *E,
     const rocblas_stride strideE, T *tauq, const rocblas_stride strideQ,
     T *taup, const rocblas_stride strideP, const rocblas_int batch_count,
-    T *scalars, T *work, T **workArr, T *diag) {
+    T *scalars, void *work_workArr, T *Abyx_norms) {
   // quick return
   if (m == 0 || n == 0 || batch_count == 0)
     return rocblas_status_success;
@@ -72,14 +84,10 @@ rocblas_status rocsolver_gebd2_template(
     // generate upper bidiagonal form
     for (rocblas_int j = 0; j < n; j++) {
       // generate Householder reflector H(j)
-      rocsolver_larfg_template(
-          handle,
-          m - j,                                        // order of reflector
-          A, shiftA + idx2D(j, j, lda),                 // value of alpha
-          A, shiftA + idx2D(min(j + 1, m - 1), j, lda), // vector x to work on
-          1, strideA,                                   // inc of x
-          (tauq + j), strideQ,                          // tau
-          batch_count, diag, work);
+      rocsolver_larfg_template(handle, m - j, A, shiftA + idx2D(j, j, lda), A,
+                               shiftA + idx2D(min(j + 1, m - 1), j, lda), 1,
+                               strideA, (tauq + j), strideQ, batch_count,
+                               (T *)work_workArr, Abyx_norms);
 
       // copy A(j,j) to D and insert one to build/apply the householder matrix
       hipLaunchKernelGGL(set_diag<T>, dim3(batch_count, 1, 1), dim3(1, 1, 1), 0,
@@ -94,15 +102,10 @@ rocblas_status rocsolver_gebd2_template(
                                       batch_count);
 
         rocsolver_larf_template(
-            handle, rocblas_side_left, // side
-            m - j,                     // number of rows of matrix to modify
-            n - j - 1,                 // number of columns of matrix to modify
-            A, shiftA + idx2D(j, j, lda),     // householder vector x
-            1, strideA,                       // inc of x
-            (tauq + j), strideQ,              // householder scalar (alpha)
-            A, shiftA + idx2D(j, j + 1, lda), // matrix to work on
-            lda, strideA,                     // leading dimension
-            batch_count, scalars, work, workArr);
+            handle, rocblas_side_left, m - j, n - j - 1, A,
+            shiftA + idx2D(j, j, lda), 1, strideA, (tauq + j), strideQ, A,
+            shiftA + idx2D(j, j + 1, lda), lda, strideA, batch_count, scalars,
+            Abyx_norms, (T **)work_workArr);
 
         // restore tauq
         if (COMPLEX)
@@ -123,13 +126,9 @@ rocblas_status rocsolver_gebd2_template(
 
         // generate Householder reflector G(j)
         rocsolver_larfg_template(
-            handle,
-            n - j - 1,                                    // order of reflector
-            A, shiftA + idx2D(j, j + 1, lda),             // value of alpha
-            A, shiftA + idx2D(j, min(j + 2, n - 1), lda), // vector x to work on
-            lda, strideA,                                 // inc of x
-            (taup + j), strideP,                          // tau
-            batch_count, diag, work);
+            handle, n - j - 1, A, shiftA + idx2D(j, j + 1, lda), A,
+            shiftA + idx2D(j, min(j + 2, n - 1), lda), lda, strideA, (taup + j),
+            strideP, batch_count, (T *)work_workArr, Abyx_norms);
 
         // copy A(j,j+1) to E and insert one to build/apply the householder
         // matrix
@@ -140,15 +139,10 @@ rocblas_status rocsolver_gebd2_template(
 
         // Apply Householder reflector G(j)
         rocsolver_larf_template(
-            handle, rocblas_side_right, // side
-            m - j - 1,                  // number of rows of matrix to modify
-            n - j - 1,                  // number of columns of matrix to modify
-            A, shiftA + idx2D(j, j + 1, lda),     // householder vector x
-            lda, strideA,                         // inc of x
-            (taup + j), strideP,                  // householder scalar (alpha)
-            A, shiftA + idx2D(j + 1, j + 1, lda), // matrix to work on
-            lda, strideA,                         // leading dimension
-            batch_count, scalars, work, workArr);
+            handle, rocblas_side_right, m - j - 1, n - j - 1, A,
+            shiftA + idx2D(j, j + 1, lda), lda, strideA, (taup + j), strideP, A,
+            shiftA + idx2D(j + 1, j + 1, lda), lda, strideA, batch_count,
+            scalars, Abyx_norms, (T **)work_workArr);
 
         if (COMPLEX)
           rocsolver_lacgv_template<T>(handle, n - j - 1, A,
@@ -173,14 +167,10 @@ rocblas_status rocsolver_gebd2_template(
                                     lda, strideA, batch_count);
 
       // generate Householder reflector G(j)
-      rocsolver_larfg_template(
-          handle,
-          n - j,                                        // order of reflector
-          A, shiftA + idx2D(j, j, lda),                 // value of alpha
-          A, shiftA + idx2D(j, min(j + 1, n - 1), lda), // vector x to work on
-          lda, strideA,                                 // inc of x
-          (taup + j), strideP,                          // tau
-          batch_count, diag, work);
+      rocsolver_larfg_template(handle, n - j, A, shiftA + idx2D(j, j, lda), A,
+                               shiftA + idx2D(j, min(j + 1, n - 1), lda), lda,
+                               strideA, (taup + j), strideP, batch_count,
+                               (T *)work_workArr, Abyx_norms);
 
       // copy A(j,j) to D and insert one to build/apply the householder matrix
       hipLaunchKernelGGL(set_diag<T>, dim3(batch_count, 1, 1), dim3(1, 1, 1), 0,
@@ -190,15 +180,10 @@ rocblas_status rocsolver_gebd2_template(
       // Apply Householder reflector G(j)
       if (j < m - 1) {
         rocsolver_larf_template(
-            handle, rocblas_side_right, // side
-            m - j - 1,                  // number of rows of matrix to modify
-            n - j,                      // number of columns of matrix to modify
-            A, shiftA + idx2D(j, j, lda),     // householder vector x
-            lda, strideA,                     // inc of x
-            (taup + j), strideP,              // householder scalar (alpha)
-            A, shiftA + idx2D(j + 1, j, lda), // matrix to work on
-            lda, strideA,                     // leading dimension
-            batch_count, scalars, work, workArr);
+            handle, rocblas_side_right, m - j - 1, n - j, A,
+            shiftA + idx2D(j, j, lda), lda, strideA, (taup + j), strideP, A,
+            shiftA + idx2D(j + 1, j, lda), lda, strideA, batch_count, scalars,
+            Abyx_norms, (T **)work_workArr);
       }
 
       if (COMPLEX)
@@ -213,13 +198,9 @@ rocblas_status rocsolver_gebd2_template(
       if (j < m - 1) {
         // generate Householder reflector H(j)
         rocsolver_larfg_template(
-            handle,
-            m - j - 1,                                    // order of reflector
-            A, shiftA + idx2D(j + 1, j, lda),             // value of alpha
-            A, shiftA + idx2D(min(j + 2, m - 1), j, lda), // vector x to work on
-            1, strideA,                                   // inc of x
-            (tauq + j), strideQ,                          // tau
-            batch_count, diag, work);
+            handle, m - j - 1, A, shiftA + idx2D(j + 1, j, lda), A,
+            shiftA + idx2D(min(j + 2, m - 1), j, lda), 1, strideA, (tauq + j),
+            strideQ, batch_count, (T *)work_workArr, Abyx_norms);
 
         // copy A(j+1,j) to D and insert one to build/apply the householder
         // matrix
@@ -235,15 +216,10 @@ rocblas_status rocsolver_gebd2_template(
 
         // Apply Householder reflector H(j)
         rocsolver_larf_template(
-            handle, rocblas_side_left, // side
-            m - j - 1,                 // number of rows of matrix to modify
-            n - j - 1,                 // number of columns of matrix to modify
-            A, shiftA + idx2D(j + 1, j, lda),     // householder vector x
-            1, strideA,                           // inc of x
-            (tauq + j), strideQ,                  // householder scalar (alpha)
-            A, shiftA + idx2D(j + 1, j + 1, lda), // matrix to work on
-            lda, strideA,                         // leading dimension
-            batch_count, scalars, work, workArr);
+            handle, rocblas_side_left, m - j - 1, n - j - 1, A,
+            shiftA + idx2D(j + 1, j, lda), 1, strideA, (tauq + j), strideQ, A,
+            shiftA + idx2D(j + 1, j + 1, lda), lda, strideA, batch_count,
+            scalars, Abyx_norms, (T **)work_workArr);
 
         // restore tauq
         if (COMPLEX)

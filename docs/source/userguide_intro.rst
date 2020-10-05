@@ -11,14 +11,14 @@ Overview
 ==================
 
 rocSOLVER is an implementation of `LAPACK routines <https://www.netlib.org/lapack/explore-html/modules.html>`_
-on top of AMD's Radeon Open Compute Platform runtime and toolchains (`ROCm <https://rocm.github.io>`_).
-rocSOLVER is implemented in the `HIP programming language <https://github.com/ROCm-Developer-Tools/HIP>`_
-an optimized for AMD's latest discrete GPUs.
+on top of `AMD ROCm <https://rocm.github.io>`_. rocSOLVER is implemented in the
+`HIP programming language <https://github.com/ROCm-Developer-Tools/HIP>`_ and optimized for AMD's
+latest discrete GPUs.
 
 Brief description and functionality
 ====================================
 
-The rocSolver library is in the early stages of active development. New features are being
+The rocSOLVER library is in the early stages of active development. New features are being
 continuously added, with new functionality documented at each release of the ROCm platform.
 
 The following table summarizes the LAPACK functionality implemented in rocSOLVER's latest release.
@@ -38,6 +38,8 @@ LAPACK Auxiliary Function       single double single complex double complex
 **rocsolver_orgqr**             x      x
 **rocsolver_orgl2**             x      x
 **rocsolver_orglq**             x      x
+**rocsolver_org2l**             x      x
+**rocsolver_orgql**             x      x
 **rocsolver_orgbr**             x      x
 **rocsolver_orm2r**             x      x
 **rocsolver_ormqr**             x      x
@@ -48,6 +50,8 @@ LAPACK Auxiliary Function       single double single complex double complex
 **rocsolver_ungqr**                              x              x
 **rocsolver_ungl2**                              x              x
 **rocsolver_unglq**                              x              x
+**rocsolver_ung2l**                              x              x
+**rocsolver_ungql**                              x              x
 **rocsolver_ungbr**                              x              x
 **rocsolver_unm2r**                              x              x
 **rocsolver_unmqr**                              x              x

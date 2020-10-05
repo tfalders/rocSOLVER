@@ -382,7 +382,9 @@ bdsqrKernel(const rocblas_int n, const rocblas_int nv, const rocblas_int nu,
     }
   }
 
-  // re-arange singular values/vectors if algorithm converged
+  info[bid] = 0;
+
+  // re-arrange singular values/vectors if algorithm converged
   if (k == 0) {
     // all positive
     for (rocblas_int ii = 0; ii < n; ++ii) {
@@ -393,7 +395,7 @@ bdsqrKernel(const rocblas_int n, const rocblas_int nv, const rocblas_int nu,
       }
     }
 
-    // in drecreasing order
+    // in decreasing order
     rocblas_int idx;
     for (rocblas_int ii = 0; ii < n - 1; ++ii) {
       idx = ii;
@@ -421,7 +423,6 @@ bdsqrKernel(const rocblas_int n, const rocblas_int nv, const rocblas_int nu,
 
   // if not, set value of info
   else {
-    info[bid] = 0;
     for (rocblas_int i = 0; i < n - 1; ++i)
       if (E[i] != 0)
         info[bid] += 1;
@@ -486,15 +487,19 @@ template <typename T>
 void rocsolver_bdsqr_getMemorySize(const rocblas_int n, const rocblas_int nv,
                                    const rocblas_int nu, const rocblas_int nc,
                                    const rocblas_int batch_count,
-                                   size_t *size) {
-  // size of workspace
-  *size = 0;
-  if (nv)
-    *size += 2;
-  if (nu || nc)
-    *size += 2;
+                                   size_t *size_work) {
+  *size_work = 0;
 
-  *size *= sizeof(T) * (n - 1) * batch_count;
+  // if quick return, no workspace is needed
+  if (n == 0 || batch_count == 0)
+    return;
+
+  // size of workspace
+  if (nv)
+    *size_work += 2;
+  if (nu || nc)
+    *size_work += 2;
+  *size_work *= sizeof(T) * n * batch_count;
 }
 
 template <typename S, typename W>
@@ -555,7 +560,12 @@ rocblas_status rocsolver_bdsqr_template(
   // value)
   S minshift = std::max(eps, tol / S(100)) / (n * tol);
 
-  rocblas_stride strideW = 4 * n;
+  rocblas_stride strideW = 0;
+  if (nv)
+    strideW += 2;
+  if (nu || nc)
+    strideW += 2;
+  strideW *= n;
 
   // rotate to upper bidiagonal if necessary
   if (uplo == rocblas_fill_lower) {

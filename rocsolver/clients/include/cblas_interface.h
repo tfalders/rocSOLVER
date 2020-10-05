@@ -95,8 +95,8 @@ void cblas_getf2(rocblas_int m, rocblas_int n, T *A, rocblas_int lda,
 
 /*
 template <typename T>
-rocblas_int cblas_trtri(char uplo, char diag, rocblas_int n, T *A,
-                        rocblas_int lda);
+rocblas_int cblas_trtri(rocblas_fill uplo, rocblas_diagonal diag, rocblas_int n,
+T *A, rocblas_int lda);
 
 template <typename T>
 void cblas_trmm(rocblas_side side, rocblas_fill uplo, rocblas_operation transA,
@@ -200,6 +200,14 @@ void cblas_orgl2_ungl2(rocblas_int m, rocblas_int n, rocblas_int k, T *A,
 
 template <typename T>
 void cblas_orglq_unglq(rocblas_int m, rocblas_int n, rocblas_int k, T *A,
+                       rocblas_int lda, T *Ipiv, T *work, rocblas_int sizeW);
+
+template <typename T>
+void cblas_org2l_ung2l(rocblas_int m, rocblas_int n, rocblas_int k, T *A,
+                       rocblas_int lda, T *Ipiv, T *work);
+
+template <typename T>
+void cblas_orgql_ungql(rocblas_int m, rocblas_int n, rocblas_int k, T *A,
                        rocblas_int lda, T *Ipiv, T *work, rocblas_int sizeW);
 
 template <typename T>
