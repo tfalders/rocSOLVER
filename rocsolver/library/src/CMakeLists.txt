@@ -140,7 +140,7 @@ if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
   # "clang-5.0: warning: argument unused during compilation: '-isystem /opt/rocm/include'"
   target_compile_options( rocsolver PRIVATE -Wno-unused-command-line-argument -fno-gpu-rdc )
   foreach( target ${AMDGPU_TARGETS} )
-    target_compile_options( rocsolver PRIVATE --amdgpu-target=${target} )
+    target_compile_options( rocsolver PRIVATE --amdgpu-target=${target}:xnack+ )
   endforeach( )
 endif( )
 
