@@ -87,51 +87,83 @@ T* const* cast2constPointer(T** array)
     return R;
 }
 
-template <typename T, typename U, std::enable_if_t<!is_complex<T>, int> = 0>
-void print_device_matrix(const std::string name,
-                         const rocblas_int m,
-                         const rocblas_int n,
-                         U A,
-                         const rocblas_int lda)
+template <typename T, std::enable_if_t<!is_complex<T>, int> = 0>
+void print_device_matrix(const char* name, T* A, const size_t m, const size_t n, const size_t lda)
 {
     T hA[lda * n];
     hipMemcpy(hA, A, sizeof(T) * lda * n, hipMemcpyDeviceToHost);
 
-    std::cerr << m << "-by-" << n << " matrix: " << name << '\n';
+    rocblas_cout << "---------- " << name << " (" << m << "-by-" << n << ") ----------" << std::endl;
     for(int i = 0; i < m; i++)
     {
         std::cerr << "    ";
         for(int j = 0; j < n; j++)
         {
-            std::cerr << hA[j * lda + i];
+            std::cerr << hA[i + j * lda];
             if(j < n - 1)
                 std::cerr << ", ";
         }
-        std::cerr << '\n';
+        std::cerr << std::endl;
     }
 }
 
-template <typename T, typename U, std::enable_if_t<is_complex<T>, int> = 0>
-void print_device_matrix(const std::string name,
-                         const rocblas_int m,
-                         const rocblas_int n,
-                         U A,
-                         const rocblas_int lda)
+template <typename T, std::enable_if_t<is_complex<T>, int> = 0>
+void print_device_matrix(const char* name, T* A, const size_t m, const size_t n, const size_t lda)
 {
     T hA[lda * n];
     hipMemcpy(hA, A, sizeof(T) * lda * n, hipMemcpyDeviceToHost);
 
-    std::cerr << m << "-by-" << n << " matrix: " << name << '\n';
+    rocblas_cout << "---------- " << name << " (" << m << "-by-" << n << ") ----------" << std::endl;
     for(int i = 0; i < m; i++)
     {
         std::cerr << "    ";
         for(int j = 0; j < n; j++)
         {
-            std::cerr << '[' << hA[j * lda + i].real() << "+" << hA[j * lda + i].imag() << "i]";
+            std::cerr << '[' << hA[i + j * lda].real() << "+" << hA[i + j * lda].imag() << "i]";
             if(j < n - 1)
                 std::cerr << ", ";
         }
-        std::cerr << '\n';
+        std::cerr << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<!is_complex<T>, int> = 0>
+void output_device_matrix(std::ostream& os, T* A, const size_t m, const size_t n, const size_t lda)
+{
+    T hA[lda * n];
+    hipMemcpy(hA, A, sizeof(T) * lda * n, hipMemcpyDeviceToHost);
+
+    // output m, n, number of matrices, and is_complex<T>
+    os << m << ' ' n << ' ' << 1 << ' ' << is_complex<T> << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << hA[i + j * lda];
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<is_complex<T>, int> = 0>
+void output_device_matrix(std::ostream& os, T* A, const size_t m, const size_t n, const size_t lda)
+{
+    T hA[lda * n];
+    hipMemcpy(hA, A, sizeof(T) * lda * n, hipMemcpyDeviceToHost);
+
+    // output m, n, number of matrices, and is_complex<T>
+    os << m << ' ' n << ' ' << 1 << ' ' << is_complex<T> << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << hA[i + j * lda].real() << "+" << hA[i + j * lda].imag() << "j";
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
     }
 }
 

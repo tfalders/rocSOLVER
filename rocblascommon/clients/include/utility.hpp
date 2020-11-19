@@ -141,26 +141,129 @@ std::string rocblas_exepath();
 /*! \brief  Debugging purpose, print out CPU and GPU result matrix, not valid in
  * complex number  */
 template <typename T>
-inline void rocblas_print_matrix(T* CPU_result, T* GPU_result, size_t m, size_t n, size_t lda)
+void print_host_matrix(const char* name, T* CPU_result, T* GPU_result, size_t m, size_t n, size_t lda)
 {
+    rocblas_cout << "---------- " << name << " (" << m << "-by-" << n << ") ----------" << std::endl;
     for(size_t i = 0; i < m; i++)
         for(size_t j = 0; j < n; j++)
         {
-            rocblas_cout << "matrix  col " << i << ", row " << j
-                         << ", CPU result=" << CPU_result[j + i * lda]
+            rocblas_cout << "    [" << i << ", " << j << "] CPU result=" << CPU_result[j + i * lda]
                          << ", GPU result=" << GPU_result[j + i * lda] << std::endl;
         }
 }
 
 template <typename T>
-void rocblas_print_matrix(const char* name, T* A, size_t m, size_t n, size_t lda)
+void print_host_matrix(const char* name, T* A, size_t m, size_t n, size_t lda)
 {
-    rocblas_cout << "---------- " << name << " ----------\n";
+    rocblas_cout << "---------- " << name << " (" << m << "-by-" << n << ") ----------" << std::endl;
     for(size_t i = 0; i < m; i++)
     {
+        rocblas_cout << "    ";
         for(size_t j = 0; j < n; j++)
-            rocblas_cout << A[i + j * lda] << " ";
+        {
+            rocblas_cout << A[i + j * lda];
+            if(j < n - 1)
+                rocblas_cout << ", ";
+        }
         rocblas_cout << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<!is_complex<T>, int> = 0>
+void output_host_matrix(std::ostream& os,
+                        T* CPU_result,
+                        T* GPU_result,
+                        const size_t m,
+                        const size_t n,
+                        const size_t lda)
+{
+    // output m, n, and number of matrices
+    os << m << ' ' n << ' ' << 2 << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << CPU_result[i + j * lda];
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << GPU_result[i + j * lda];
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<is_complex<T>, int> = 0>
+void output_host_matrix(std::ostream& os,
+                        T* CPU_result,
+                        T* GPU_result,
+                        const size_t m,
+                        const size_t n,
+                        const size_t lda)
+{
+    // output m, n, and number of matrices
+    os << m << ' ' n << ' ' << 2 << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << CPU_result[i + j * lda].real() << "+" << CPU_result[i + j * lda].imag() << "j";
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << GPU_result[i + j * lda].real() << "+" << GPU_result[i + j * lda].imag() << "j";
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<!is_complex<T>, int> = 0>
+void output_host_matrix(std::ostream& os, T* A, const size_t m, const size_t n, const size_t lda)
+{
+    // output m, n, and number of matrices
+    os << m << ' ' n << ' ' << 1 << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << A[i + j * lda];
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
+    }
+}
+
+template <typename T, std::enable_if_t<is_complex<T>, int> = 0>
+void output_host_matrix(std::ostream& os, T* A, const size_t m, const size_t n, const size_t lda)
+{
+    // output m, n, and number of matrices
+    os << m << ' ' n << ' ' << 1 << std::endl;
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < n; j++)
+        {
+            os << A[i + j * lda].real() << "+" << A[i + j * lda].imag() << "j";
+            if(j < n - 1)
+                os << ' ';
+        }
+        os << std::endl;
     }
 }
 
