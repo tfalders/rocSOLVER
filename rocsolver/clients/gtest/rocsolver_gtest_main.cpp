@@ -1,10 +1,10 @@
 /* ************************************************************************
- * Copyright (c) 2020 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020-2021 Advanced Micro Devices, Inc.
  * ************************************************************************ */
 
 #include "clientcommon.hpp"
 #include "internal/rocblas-version.h"
-#include "rocsolver-version.h"
+#include "rocsolver.h"
 #include <gtest/gtest.h>
 #include <stdexcept>
 
@@ -45,8 +45,10 @@ int main(int argc, char** argv)
     // Initialize gtest and rocBLAS
     ::testing::InitGoogleTest(&argc, argv);
     rocblas_initialize();
+    rocsolver_logging_initialize((rocblas_layer_mode)8, 10);
 
     int status = RUN_ALL_TESTS();
+    rocsolver_logging_cleanup();
     print_version_info(); // redundant, but convenient when tests fail
     return status;
 }

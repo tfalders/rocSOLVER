@@ -1,5 +1,5 @@
 # ########################################################################
-# Copyright (c) 2019-2020 Advanced Micro Devices, Inc.
+# Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
 # ########################################################################
 
 # For debugging, uncomment this
@@ -46,47 +46,47 @@ set( THREADS_PREFER_PTHREAD_FLAG ON )
 find_package( Threads REQUIRED )
 
 set(roclapack_test_source
-    # triangular factorizations and linear solvers
-    getrs_gtest.cpp
-    getri_gtest.cpp
-    getf2_getrf_gtest.cpp
-    potf2_potrf_gtest.cpp
-    gels_gtest.cpp
-    # bidiagonal matrices and svd
-    gebd2_gebrd_gtest.cpp
-    gesvd_gtest.cpp
-    labrd_gtest.cpp
-    bdsqr_gtest.cpp
-    # tridiagonal matrices and eigensolvers
-    sytxx_hetxx_gtest.cpp
-    sterf_gtest.cpp
-    steqr_gtest.cpp
-    latrd_gtest.cpp
-    # orthogonal factorizations
-    geqr2_geqrf_gtest.cpp
-    geql2_geqlf_gtest.cpp
-    gelq2_gelqf_gtest.cpp
-    # orthonormal/unitary matrices
-    orgxr_ungxr_gtest.cpp
-    orglx_unglx_gtest.cpp
-    orgxl_ungxl_gtest.cpp
-    orgbr_ungbr_gtest.cpp
-    orgtr_ungtr_gtest.cpp
-    ormxr_unmxr_gtest.cpp
-    ormlx_unmlx_gtest.cpp
-    ormxl_unmxl_gtest.cpp
-    ormbr_unmbr_gtest.cpp
-    ormtr_unmtr_gtest.cpp
-    # householder reflections
+    # # triangular factorizations and linear solvers
+    # getrs_gtest.cpp
+    # getri_gtest.cpp
+    # getf2_getrf_gtest.cpp
+    # potf2_potrf_gtest.cpp
+    # gels_gtest.cpp
+    # # bidiagonal matrices and svd
+    # gebd2_gebrd_gtest.cpp
+    # gesvd_gtest.cpp
+    # labrd_gtest.cpp
+    # bdsqr_gtest.cpp
+    # # tridiagonal matrices and eigensolvers
+    # sytxx_hetxx_gtest.cpp
+    # sterf_gtest.cpp
+    # steqr_gtest.cpp
+    # latrd_gtest.cpp
+    # # orthogonal factorizations
+    # geqr2_geqrf_gtest.cpp
+    # geql2_geqlf_gtest.cpp
+    # gelq2_gelqf_gtest.cpp
+    # # orthonormal/unitary matrices
+    # orgxr_ungxr_gtest.cpp
+    # orglx_unglx_gtest.cpp
+    # orgxl_ungxl_gtest.cpp
+    # orgbr_ungbr_gtest.cpp
+    # orgtr_ungtr_gtest.cpp
+    # ormxr_unmxr_gtest.cpp
+    # ormlx_unmlx_gtest.cpp
+    # ormxl_unmxl_gtest.cpp
+    # ormbr_unmbr_gtest.cpp
+    # ormtr_unmtr_gtest.cpp
+    # # householder reflections
     larf_gtest.cpp
-    larfg_gtest.cpp
-    larft_gtest.cpp
-    larfb_gtest.cpp
-    # vector & matrix manipulations
-    lacgv_gtest.cpp
-    laswp_gtest.cpp
-    # unified memory model
-    managed_malloc_gtest.cpp
+    # larfg_gtest.cpp
+    # larft_gtest.cpp
+    # larfb_gtest.cpp
+    # # vector & matrix manipulations
+    # lacgv_gtest.cpp
+    # laswp_gtest.cpp
+    # # unified memory model
+    # managed_malloc_gtest.cpp
     )
 
 set(rocsolver_test_source
