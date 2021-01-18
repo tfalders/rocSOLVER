@@ -270,6 +270,17 @@ constexpr char rocblas_evect_letter(rocblas_evect value)
     return ' ';
 }
 
+constexpr char rocblas_itype_letter(rocblas_itype value)
+{
+    switch(value)
+    {
+    case rocblas_itype_ax: return '1';
+    case rocblas_itype_abx: return '2';
+    case rocblas_itype_bax: return '3';
+    }
+    return ' ';
+}
+
 // return precision string for rocblas_datatype
 constexpr const char* rocblas_datatype_string(rocblas_datatype type)
 {
