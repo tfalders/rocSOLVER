@@ -270,13 +270,13 @@ constexpr char rocblas_evect_letter(rocblas_evect value)
     return ' ';
 }
 
-constexpr char rocblas_itype_letter(rocblas_itype value)
+constexpr char rocblas_eform_letter(rocblas_eform value)
 {
     switch(value)
     {
-    case rocblas_itype_ax: return '1';
-    case rocblas_itype_abx: return '2';
-    case rocblas_itype_bax: return '3';
+    case rocblas_eform_ax: return '1';
+    case rocblas_eform_abx: return '2';
+    case rocblas_eform_bax: return '3';
     }
     return ' ';
 }

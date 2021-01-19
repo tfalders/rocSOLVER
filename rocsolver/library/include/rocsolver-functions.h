@@ -10093,7 +10093,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhetrd_strided_batched(rocblas_handle 
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblem.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10120,7 +10120,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhetrd_strided_batched(rocblas_handle 
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  float* A,
@@ -10129,7 +10129,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2(rocblas_handle handle,
                                                  const rocblas_int ldb);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  double* A,
@@ -10171,7 +10171,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblem.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10198,7 +10198,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  rocblas_float_complex* A,
@@ -10207,7 +10207,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2(rocblas_handle handle,
                                                  const rocblas_int ldb);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  rocblas_double_complex* A,
@@ -10250,7 +10250,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10280,7 +10280,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          float* const A[],
@@ -10290,7 +10290,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2_batched(rocblas_handle handle,
                                                          const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          double* const A[],
@@ -10334,7 +10334,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_batched(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10364,7 +10364,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_batched(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          rocblas_float_complex* const A[],
@@ -10374,7 +10374,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2_batched(rocblas_handle handle,
                                                          const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          rocblas_double_complex* const A[],
@@ -10418,7 +10418,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_batched(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10456,7 +10456,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_batched(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  float* A,
@@ -10468,7 +10468,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygs2_strided_batched(rocblas_handle 
                                                                  const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  double* A,
@@ -10514,7 +10514,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_strided_batched(rocblas_handle 
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10552,7 +10552,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygs2_strided_batched(rocblas_handle 
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  rocblas_float_complex* A,
@@ -10564,7 +10564,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegs2_strided_batched(rocblas_handle 
                                                                  const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  rocblas_double_complex* A,
@@ -10609,7 +10609,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_strided_batched(rocblas_handle 
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblem.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10636,7 +10636,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegs2_strided_batched(rocblas_handle 
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  float* A,
@@ -10645,7 +10645,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst(rocblas_handle handle,
                                                  const rocblas_int ldb);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  double* A,
@@ -10687,7 +10687,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblem.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10714,7 +10714,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegst(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  rocblas_float_complex* A,
@@ -10723,7 +10723,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegst(rocblas_handle handle,
                                                  const rocblas_int ldb);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst(rocblas_handle handle,
-                                                 const rocblas_itype itype,
+                                                 const rocblas_eform itype,
                                                  const rocblas_fill uplo,
                                                  const rocblas_int n,
                                                  rocblas_double_complex* A,
@@ -10766,7 +10766,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10796,7 +10796,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          float* const A[],
@@ -10806,7 +10806,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst_batched(rocblas_handle handle,
                                                          const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          double* const A[],
@@ -10850,7 +10850,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_batched(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10880,7 +10880,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_batched(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegst_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          rocblas_float_complex* const A[],
@@ -10890,7 +10890,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegst_batched(rocblas_handle handle,
                                                          const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst_batched(rocblas_handle handle,
-                                                         const rocblas_itype itype,
+                                                         const rocblas_eform itype,
                                                          const rocblas_fill uplo,
                                                          const rocblas_int n,
                                                          rocblas_double_complex* const A[],
@@ -10934,7 +10934,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst_batched(rocblas_handle handle,
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -10972,7 +10972,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst_batched(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  float* A,
@@ -10984,7 +10984,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_ssygst_strided_batched(rocblas_handle 
                                                                  const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  double* A,
@@ -11030,7 +11030,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_strided_batched(rocblas_handle 
     @param[in]
     handle    rocblas_handle.
     @param[in]
-    itype     rocblas_itype.\n
+    itype     rocblas_eform.\n
               Specifies the form of the generalized eigenproblems.
     @param[in]
     uplo      rocblas_fill.\n
@@ -11068,7 +11068,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dsygst_strided_batched(rocblas_handle 
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_chegst_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  rocblas_float_complex* A,
@@ -11080,7 +11080,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_chegst_strided_batched(rocblas_handle 
                                                                  const rocblas_int batch_count);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_zhegst_strided_batched(rocblas_handle handle,
-                                                                 const rocblas_itype itype,
+                                                                 const rocblas_eform itype,
                                                                  const rocblas_fill uplo,
                                                                  const rocblas_int n,
                                                                  rocblas_double_complex* A,

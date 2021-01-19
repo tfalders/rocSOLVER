@@ -390,9 +390,9 @@ public:
     }
 
     // rocsolver_itype output
-    friend rocsolver_ostream& operator<<(rocsolver_ostream& os, rocblas_itype value)
+    friend rocsolver_ostream& operator<<(rocsolver_ostream& os, rocblas_eform value)
     {
-        return os << rocblas_itype_letter(value);
+        return os << rocblas_eform_letter(value);
     }
 
     // rocsolver_status output
