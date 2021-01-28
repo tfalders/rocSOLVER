@@ -59,6 +59,8 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_logging_initialize(const rocblas_layer
  ******************************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_logging_cleanup(void);
+ROCSOLVER_EXPORT rocblas_status rocsolver_create_logger(void);
+ROCSOLVER_EXPORT rocblas_status rocsolver_destroy_logger(void);
 
 /*
  * ===========================================================================

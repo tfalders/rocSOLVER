@@ -85,31 +85,57 @@ rocsolver_log_entry rocsolver_logger::pop_log_entry(rocblas_handle handle)
 
 extern "C" {
 
-rocblas_status rocsolver_logging_initialize(const rocblas_layer_mode layer_mode,
-                                            const rocblas_int max_levels)
+rocblas_status rocsolver_create_logger()
 {
     rocsolver_logger::_mutex.lock();
 
     if(rocsolver_logger::_instance != nullptr)
         return rocblas_status_internal_error;
-    if(max_levels < 1)
-        return rocblas_status_invalid_value;
 
     auto logger = rocsolver_logger::_instance = new rocsolver_logger();
 
-    // set layer_mode from value of environment variable ROCSOLVER_LAYER
+    // set layer_mode from environment variable ROCSOLVER_LAYER or to default
     const char* str_layer_mode = getenv("ROCSOLVER_LAYER");
     if(str_layer_mode)
         logger->layer_mode = static_cast<rocblas_layer_mode>(strtol(str_layer_mode, 0, 0));
     else
-        logger->layer_mode = layer_mode;
+        logger->layer_mode = rocblas_layer_mode_none;
 
-    // set max_levels from value of environment variable ROCSOLVER_LEVELS
+    // set max_levels from value of environment variable ROCSOLVER_LEVELS or to default
     const char* str_max_level = getenv("ROCSOLVER_LEVELS");
     if(str_max_level)
         logger->max_levels = static_cast<int>(strtol(str_max_level, 0, 0));
     else
-        logger->max_levels = max_levels;
+        logger->max_levels = 1;
+
+    return rocblas_status_success;
+}
+
+rocblas_status rocsolver_logging_initialize(const rocblas_layer_mode layer_mode,
+                                            const rocblas_int max_levels)
+{
+//    if(rocsolver_logger::_instance != nullptr)
+    if(rocsolver_logger::_instance == nullptr)
+        return rocblas_status_internal_error;
+    if(max_levels < 1)
+        return rocblas_status_invalid_value;
+
+//    auto logger = rocsolver_logger::_instance = new rocsolver_logger();
+    auto logger = rocsolver_logger::_instance;
+
+    // set layer_mode from value of environment variable ROCSOLVER_LAYER
+//    const char* str_layer_mode = getenv("ROCSOLVER_LAYER");
+//    if(str_layer_mode)
+//        logger->layer_mode = static_cast<rocblas_layer_mode>(strtol(str_layer_mode, 0, 0));
+//    else
+    logger->layer_mode = layer_mode;
+
+    // set max_levels from value of environment variable ROCSOLVER_LEVELS
+//    const char* str_max_level = getenv("ROCSOLVER_LEVELS");
+//    if(str_max_level)
+//        logger->max_levels = static_cast<int>(strtol(str_max_level, 0, 0));
+//    else
+    logger->max_levels = max_levels;
 
     // create output streams
     if(logger->layer_mode & rocblas_layer_mode_log_trace)
@@ -150,12 +176,28 @@ rocblas_status rocsolver_logging_cleanup()
         *logger->profile_os << std::endl;
     }
 
-    delete logger;
-    logger = nullptr;
+//    delete logger;
+//    logger = nullptr;
+
+    logger->max_levels = 1;
+    logger->layer_mode = rocblas_layer_mode_none;
 
     rocsolver_logger::_mutex.unlock();
     return rocblas_status_success;
 }
+
+rocblas_status rocsolver_destroy_logger()
+{
+    if(rocsolver_logger::_instance == nullptr)
+        return rocblas_status_internal_error;
+
+    rocsolver_logging_cleanup();
+    delete rocsolver_logger::_instance;
+    rocsolver_logger::_instance = nullptr;
+
+    return rocblas_status_success;    
+}
+
 }
 
 /***************************************************************************

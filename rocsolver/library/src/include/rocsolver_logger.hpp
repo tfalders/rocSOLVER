@@ -256,4 +256,6 @@ public:
     friend rocblas_status rocsolver_logging_initialize(const rocblas_layer_mode layer_mode,
                                                        const rocblas_int max_levels);
     friend rocblas_status rocsolver_logging_cleanup(void);
+    friend rocblas_status rocsolver_create_logger(void);
+    friend rocblas_status rocsolver_destroy_logger(void);
 };
