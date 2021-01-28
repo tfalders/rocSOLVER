@@ -61,9 +61,13 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_logging_initialize(const rocblas_layer
     \details
     This function prints the profile logging results, if applicable, and then reset the logger to the
     default mode (no logging).
+
+    @param[in]
+    clean_profile   boolean.\n
+                    Specifies whether the profile record will be erased after printed.
  ******************************************************************************/
 
-ROCSOLVER_EXPORT rocblas_status rocsolver_logging_cleanup(void);
+ROCSOLVER_EXPORT rocblas_status rocsolver_logging_cleanup(bool clean_profile);
 
 
 /*! \brief CREATE_LOGGER creates a multi-level rocSOLVER logger.

@@ -151,7 +151,7 @@ rocblas_status rocsolver_logging_initialize(const rocblas_layer_mode layer_mode,
     return rocblas_status_success;
 }
 
-rocblas_status rocsolver_logging_cleanup()
+rocblas_status rocsolver_logging_cleanup(bool clean_profile)
 {
     rocsolver_logger::_mutex.lock();
 
@@ -185,7 +185,7 @@ rocblas_status rocsolver_logging_cleanup()
     // reset to no logging and clear profile info
     logger->max_levels = 1;
     logger->layer_mode = rocblas_layer_mode_none;
-    logger->profile.clear();
+    if(clean_profile) logger->profile.clear();
 
     rocsolver_logger::_mutex.unlock();
 
@@ -195,7 +195,7 @@ rocblas_status rocsolver_logging_cleanup()
 rocblas_status rocsolver_destroy_logger()
 {
     // first cleanup in case there is profile to print
-    rocsolver_logging_cleanup();
+    rocsolver_logging_cleanup(true);
     
     // then delete the logger if any 
     rocsolver_logger::_mutex.lock();
