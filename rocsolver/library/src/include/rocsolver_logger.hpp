@@ -206,13 +206,13 @@ private:
 
 public:
     // return the singleton instance
-    static inline rocsolver_logger* instance()
+    static rocsolver_logger* instance()
     {
         return rocsolver_logger::_instance;
     }
 
     // returns true if logging facilities are enabled
-    static inline bool is_logging_enabled()
+    static bool is_logging_enabled()
     {
         return (rocsolver_logger::_instance != nullptr)
             && (rocsolver_logger::_instance->layer_mode
