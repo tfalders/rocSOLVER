@@ -125,7 +125,7 @@ private:
     std::unique_ptr<rocsolver_ostream> profile_os;
 
     // returns a unique_ptr to a file stream or a given default stream
-    auto open_log_stream(const char* environment_variable_name);
+    std::unique_ptr<rocsolver_ostream> open_log_stream(const char* environment_variable_name);
 
     // returns a log entry on the call stack
     rocsolver_log_entry& push_log_entry(rocblas_handle handle, std::string&& name);

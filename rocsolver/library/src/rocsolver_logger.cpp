@@ -19,7 +19,7 @@ std::mutex rocsolver_logger::_mutex;
  * Open logging streams
  ***************************************************************************/
 
-auto rocsolver_logger::open_log_stream(const char* environment_variable_name)
+std::unique_ptr<rocsolver_ostream> rocsolver_logger::open_log_stream(const char* environment_variable_name)
 {
     const char* logfile;
     if((logfile = std::getenv(environment_variable_name)) != nullptr
