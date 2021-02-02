@@ -195,7 +195,7 @@ private:
         const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
         rocsolver_profile_map* map = &profile;
-        for(std::string caller_name : from_stack.callers)
+        for(const std::string& caller_name : from_stack.callers)
         {
             rocsolver_profile_entry& entry = (*map)[caller_name];
             if(!entry.internal_calls)

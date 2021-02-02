@@ -98,15 +98,14 @@ void rocsolver_logger::write_profile(rocsolver_profile_map::iterator start,
         for(int i = 0; i < entry.level - 1; i++)
             *profile_os << "    ";
 
-        *profile_os << it->first.c_str() << ": Calls: " << entry.calls
+        *profile_os << it->first << ": Calls: " << entry.calls
                     << ", Total Time: " << (entry.time * 0.001) << " ms";
 
         if(entry.internal_calls)
         {
             double internal_time = 0;
-            for(auto nested = entry.internal_calls->begin(); nested != entry.internal_calls->end();
-                nested++)
-                internal_time += nested->second.time;
+            for(const auto& nested : *entry.internal_calls)
+                internal_time += nested.second.time;
 
             *profile_os << " (in nested functions: " << (internal_time * 0.001) << " ms)" << '\n';
 
