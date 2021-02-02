@@ -128,7 +128,7 @@ private:
     auto open_log_stream(const char* environment_variable_name);
 
     // returns a log entry on the call stack
-    rocsolver_log_entry& push_log_entry(rocblas_handle handle, std::string name);
+    rocsolver_log_entry& push_log_entry(rocblas_handle handle, std::string&& name);
     rocsolver_log_entry& peek_log_entry(rocblas_handle handle);
     rocsolver_log_entry pop_log_entry(rocblas_handle handle);
 
@@ -141,13 +141,21 @@ private:
 
     // combines a function prefix and name into an std::string
     template <typename T>
-    inline std::string get_func_name(const char* func_prefix, const char* func_name)
+    std::string get_func_name(const char* func_prefix, const char* func_name)
     {
-        return std::string(func_prefix) + '_' + get_precision<T>() + func_name;
+        std::string result(func_prefix);
+        result += '_';
+        result += get_precision<T>();
+        result += func_name;
+        return result;
     }
-    inline std::string get_template_name(const char* func_prefix, const char* func_name)
+    std::string get_template_name(const char* func_prefix, const char* func_name)
     {
-        return std::string(func_prefix) + '_' + func_name + "_template";
+        std::string result(func_prefix);
+        result += '_';
+        result += func_name;
+        result += "_template";
+        return result;
     }
 
     // timing functions borrowed from rocblascommon/clients/include/utility.hpp

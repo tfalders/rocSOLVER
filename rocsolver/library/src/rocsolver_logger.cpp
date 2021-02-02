@@ -50,13 +50,13 @@ auto rocsolver_logger::open_log_stream(const char* environment_variable_name)
  * Call stack manipulation
  ***************************************************************************/
 
-rocsolver_log_entry& rocsolver_logger::push_log_entry(rocblas_handle handle, std::string name)
+rocsolver_log_entry& rocsolver_logger::push_log_entry(rocblas_handle handle, std::string&& name)
 {
     std::vector<rocsolver_log_entry>& stack = call_stack[handle];
     stack.push_back(rocsolver_log_entry());
 
     rocsolver_log_entry& result = stack.back();
-    result.name = name;
+    result.name = std::move(name);
     result.level = stack.size() - 1;
     result.start_time = get_time_us_no_sync();
 
@@ -68,18 +68,18 @@ rocsolver_log_entry& rocsolver_logger::push_log_entry(rocblas_handle handle, std
 
 rocsolver_log_entry& rocsolver_logger::peek_log_entry(rocblas_handle handle)
 {
-    std::vector<rocsolver_log_entry>& stack = call_stack.at(handle);
+    std::vector<rocsolver_log_entry>& stack = call_stack[handle];
     rocsolver_log_entry& result = stack.back();
     return result;
 }
 
 rocsolver_log_entry rocsolver_logger::pop_log_entry(rocblas_handle handle)
 {
-    std::vector<rocsolver_log_entry>& stack = call_stack.at(handle);
+    std::vector<rocsolver_log_entry>& stack = call_stack[handle];
     rocsolver_log_entry result = stack.back();
     stack.pop_back();
 
-    if(stack.size() == 0)
+    if(stack.empty())
         call_stack.erase(handle);
 
     return result;
@@ -131,7 +131,7 @@ rocblas_status rocsolver_log_write_profile(void)
     auto logger = rocsolver_logger::_instance;
 
     // print profile logging results
-    if(logger->layer_mode & rocblas_layer_mode_log_profile && logger->profile.size() > 0)
+    if(logger->layer_mode & rocblas_layer_mode_log_profile && !logger->profile.empty())
     {
         *logger->profile_os << "------- PROFILE -------" << '\n';
         logger->write_profile(logger->profile.begin(), logger->profile.end());
@@ -157,7 +157,7 @@ rocblas_status rocsolver_log_flush_profile(void)
     auto logger = rocsolver_logger::_instance;
 
     // print and clear profile logging results
-    if(logger->layer_mode & rocblas_layer_mode_log_profile && logger->profile.size() > 0)
+    if(logger->layer_mode & rocblas_layer_mode_log_profile && !logger->profile.empty())
     {
         *logger->profile_os << "------- PROFILE -------" << '\n';
         logger->write_profile(logger->profile.begin(), logger->profile.end());
@@ -246,14 +246,14 @@ rocblas_status rocsolver_log_end()
     auto logger = rocsolver_logger::_instance;
 
     // if there are pending log_exit calls:
-    if(rocsolver_logger::_instance->call_stack.size() > 0)
+    if(!rocsolver_logger::_instance->call_stack.empty())
     {
         rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
     }
 
     // print profile logging results
-    if(logger->layer_mode & rocblas_layer_mode_log_profile && logger->profile.size() > 0)
+    if(logger->layer_mode & rocblas_layer_mode_log_profile && !logger->profile.empty())
     {
         *logger->profile_os << "------- PROFILE -------" << '\n';
         logger->write_profile(logger->profile.begin(), logger->profile.end());
