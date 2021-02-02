@@ -19,7 +19,8 @@ std::mutex rocsolver_logger::_mutex;
  * Open logging streams
  ***************************************************************************/
 
-std::unique_ptr<rocsolver_ostream> rocsolver_logger::open_log_stream(const char* environment_variable_name)
+std::unique_ptr<rocsolver_ostream>
+    rocsolver_logger::open_log_stream(const char* environment_variable_name)
 {
     const char* logfile;
     if((logfile = std::getenv(environment_variable_name)) != nullptr
@@ -182,7 +183,7 @@ try
     {
         errno = 0;
         long value = strtol(str_layer_mode, 0, 0);
-        if (errno || value < 0 || size_t(value) > size_t(UINT32_MAX))
+        if(errno || value < 0 || size_t(value) > size_t(UINT32_MAX))
             return rocblas_status_internal_error;
         else
             logger->layer_mode = static_cast<rocblas_layer_mode_flags>(value);
@@ -195,7 +196,7 @@ try
     {
         errno = 0;
         long value = strtol(str_max_level, 0, 0);
-        if (errno || value < 1 || size_t(value) > size_t(INT_MAX))
+        if(errno || value < 1 || size_t(value) > size_t(INT_MAX))
             return rocblas_status_internal_error;
         else
             logger->max_levels = static_cast<int>(value);
@@ -214,7 +215,6 @@ catch(...)
 {
     return exception_to_rocblas_status();
 }
-
 
 rocblas_status rocsolver_log_end()
 try
@@ -250,7 +250,6 @@ catch(...)
     return exception_to_rocblas_status();
 }
 
-
 rocblas_status rocsolver_log_set_layer_mode(const rocblas_layer_mode_flags layer_mode)
 try
 {
@@ -272,7 +271,6 @@ catch(...)
 {
     return exception_to_rocblas_status();
 }
-
 
 rocblas_status rocsolver_log_set_max_levels(const rocblas_int max_levels)
 try
@@ -298,7 +296,6 @@ catch(...)
     return exception_to_rocblas_status();
 }
 
-
 rocblas_status rocsolver_log_restore_defaults(void)
 try
 {
@@ -320,7 +317,6 @@ catch(...)
 {
     return exception_to_rocblas_status();
 }
-
 }
 
 /***************************************************************************
