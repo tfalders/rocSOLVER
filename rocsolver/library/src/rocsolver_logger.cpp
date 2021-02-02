@@ -119,14 +119,11 @@ void rocsolver_logger::write_profile(rocsolver_profile_map::iterator start,
 
 rocblas_status rocsolver_log_write_profile(void)
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
@@ -138,21 +135,16 @@ rocblas_status rocsolver_log_write_profile(void)
         *logger->profile_os << std::endl;
     }
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
 rocblas_status rocsolver_log_flush_profile(void)
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
@@ -166,8 +158,6 @@ rocblas_status rocsolver_log_flush_profile(void)
         logger->profile.clear();
     }
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
@@ -179,14 +169,11 @@ extern "C" {
 
 rocblas_status rocsolver_log_begin()
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is no logger, create one and:
     if(rocsolver_logger::_instance != nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance = new rocsolver_logger();
 
@@ -196,10 +183,7 @@ rocblas_status rocsolver_log_begin()
         errno = 0;
         long value = strtol(str_layer_mode, 0, 0);
         if (errno || value < 0 || size_t(value) > size_t(UINT32_MAX))
-        {
-            rocsolver_logger::_mutex.unlock();
             return rocblas_status_internal_error;
-        }
         else
             logger->layer_mode = static_cast<rocblas_layer_mode_flags>(value);
     }
@@ -212,10 +196,7 @@ rocblas_status rocsolver_log_begin()
         errno = 0;
         long value = strtol(str_max_level, 0, 0);
         if (errno || value < 1 || size_t(value) > size_t(INT_MAX))
-        {
-            rocsolver_logger::_mutex.unlock();
             return rocblas_status_internal_error;
-        }
         else
             logger->max_levels = static_cast<int>(value);
     }
@@ -227,30 +208,22 @@ rocblas_status rocsolver_log_begin()
     logger->bench_os = logger->open_log_stream("ROCSOLVER_LOG_BENCH_PATH");
     logger->profile_os = logger->open_log_stream("ROCSOLVER_LOG_PROFILE_PATH");
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
 rocblas_status rocsolver_log_end()
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
     // if there are pending log_exit calls:
     if(!rocsolver_logger::_instance->call_stack.empty())
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     // print profile logging results
     if(logger->layer_mode & rocblas_layer_mode_log_profile && !logger->profile.empty())
@@ -264,21 +237,16 @@ rocblas_status rocsolver_log_end()
     delete rocsolver_logger::_instance;
     rocsolver_logger::_instance = nullptr;
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
 rocblas_status rocsolver_log_set_layer_mode(const rocblas_layer_mode_flags layer_mode)
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
@@ -286,26 +254,18 @@ rocblas_status rocsolver_log_set_layer_mode(const rocblas_layer_mode_flags layer
     // output streams remain the same defined at logger creation
     logger->layer_mode = layer_mode;
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
 rocblas_status rocsolver_log_set_max_levels(const rocblas_int max_levels)
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
     if(max_levels < 1)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_invalid_value;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
@@ -313,29 +273,22 @@ rocblas_status rocsolver_log_set_max_levels(const rocblas_int max_levels)
     // output streams remain the same defined at logger creation
     logger->max_levels = max_levels;
 
-    rocsolver_logger::_mutex.unlock();
-
     return rocblas_status_success;
 }
 
 rocblas_status rocsolver_log_restore_defaults(void)
 {
-    rocsolver_logger::_mutex.lock();
+    const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
     // if there is an active logger:
     if(rocsolver_logger::_instance == nullptr)
-    {
-        rocsolver_logger::_mutex.unlock();
         return rocblas_status_internal_error;
-    }
 
     auto logger = rocsolver_logger::_instance;
 
     // reset to no logging
     logger->max_levels = 1;
     logger->layer_mode = rocblas_layer_mode_none;
-
-    rocsolver_logger::_mutex.unlock();
 
     return rocblas_status_success;
 }

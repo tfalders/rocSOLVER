@@ -192,7 +192,7 @@ private:
         rocblas_get_stream(handle, &stream);
         double time = get_time_us_sync(stream) - from_stack.start_time;
 
-        rocsolver_logger::_mutex.lock();
+        const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
         rocsolver_profile_map* map = &profile;
         for(std::string caller_name : from_stack.callers)
@@ -208,8 +208,11 @@ private:
         from_profile.level = from_stack.level;
         from_profile.calls++;
         from_profile.time += time;
+    }
 
-        rocsolver_logger::_mutex.unlock();
+    static std::unique_lock<std::mutex> acquire_lock()
+    {
+        return std::unique_lock<std::mutex>(rocsolver_logger::_mutex);
     }
 
 public:
@@ -235,11 +238,11 @@ public:
                              const char* func_name,
                              Ts... args)
     {
-        rocsolver_logger::_mutex.lock();
+        auto lock = acquire_lock();
         auto entry = push_log_entry(handle, get_func_name<T>(func_prefix, func_name));
         bool bench_enabled = layer_mode & rocblas_layer_mode_log_bench;
         bool trace_enabled = layer_mode & rocblas_layer_mode_log_trace;
-        rocsolver_logger::_mutex.unlock();
+        lock.unlock();
         ROCSOLVER_ASSUME(entry.level == 0);
 
         if(bench_enabled)
@@ -254,10 +257,10 @@ public:
     template <typename T>
     void log_exit_top_level(rocblas_handle handle)
     {
-        rocsolver_logger::_mutex.lock();
+        auto lock = acquire_lock();
         auto entry = pop_log_entry(handle);
         bool trace_enabled = layer_mode & rocblas_layer_mode_log_trace;
-        rocsolver_logger::_mutex.unlock();
+        lock.unlock();
         ROCSOLVER_ASSUME(entry.level == 0);
 
         if(trace_enabled)
@@ -270,10 +273,10 @@ public:
     template <typename T, typename... Ts>
     void log_enter(rocblas_handle handle, const char* func_prefix, const char* func_name, Ts... args)
     {
-        rocsolver_logger::_mutex.lock();
+        auto lock = acquire_lock();
         auto entry = push_log_entry(handle, get_template_name(func_prefix, func_name));
         bool trace_enabled = layer_mode & rocblas_layer_mode_log_trace && entry.level <= max_levels;
-        rocsolver_logger::_mutex.unlock();
+        lock.unlock();
 
         if(trace_enabled)
             log_trace<T>(entry.level, func_prefix, func_name, args...);
@@ -283,10 +286,10 @@ public:
     template <typename T>
     void log_exit(rocblas_handle handle)
     {
-        rocsolver_logger::_mutex.lock();
+        auto lock = acquire_lock();
         auto entry = pop_log_entry(handle);
         bool profile_enabled = layer_mode & rocblas_layer_mode_log_profile;
-        rocsolver_logger::_mutex.unlock();
+        lock.unlock();
 
         if(profile_enabled)
             log_profile<T>(handle, entry);
