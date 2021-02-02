@@ -223,7 +223,7 @@ public:
     }
 
     // returns true if logging facilities are enabled
-    static bool is_logging_enabled()
+    static __forceinline__ bool is_logging_enabled()
     {
         return (rocsolver_logger::_instance != nullptr)
             && (rocsolver_logger::_instance->layer_mode
