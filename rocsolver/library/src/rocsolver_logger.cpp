@@ -3,6 +3,8 @@
  * ************************************************************************ */
 
 #include "rocsolver_logger.hpp"
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
 #include <sys/time.h>
 
@@ -189,16 +191,34 @@ rocblas_status rocsolver_log_begin()
     auto logger = rocsolver_logger::_instance = new rocsolver_logger();
 
     // set layer_mode from environment variable ROCSOLVER_LAYER or to default
-    const char* str_layer_mode = std::getenv("ROCSOLVER_LAYER");
-    if(str_layer_mode)
-        logger->layer_mode = static_cast<rocblas_layer_mode_flags>(strtol(str_layer_mode, 0, 0));
+    if(const char* str_layer_mode = std::getenv("ROCSOLVER_LAYER"))
+    {
+        errno = 0;
+        long value = strtol(str_layer_mode, 0, 0);
+        if (errno || value < 0 || size_t(value) > size_t(UINT32_MAX))
+        {
+            rocsolver_logger::_mutex.unlock();
+            return rocblas_status_internal_error;
+        }
+        else
+            logger->layer_mode = static_cast<rocblas_layer_mode_flags>(value);
+    }
     else
         logger->layer_mode = rocblas_layer_mode_none;
 
     // set max_levels from value of environment variable ROCSOLVER_LEVELS or to default
-    const char* str_max_level = std::getenv("ROCSOLVER_LEVELS");
-    if(str_max_level)
-        logger->max_levels = static_cast<int>(strtol(str_max_level, 0, 0));
+    if(const char* str_max_level = std::getenv("ROCSOLVER_LEVELS"))
+    {
+        errno = 0;
+        long value = strtol(str_max_level, 0, 0);
+        if (errno || value < 1 || size_t(value) > size_t(INT_MAX))
+        {
+            rocsolver_logger::_mutex.unlock();
+            return rocblas_status_internal_error;
+        }
+        else
+            logger->max_levels = static_cast<int>(value);
+    }
     else
         logger->max_levels = 1;
 
