@@ -167,6 +167,7 @@ rocblas_status rocsolver_log_flush_profile(void)
 extern "C" {
 
 rocblas_status rocsolver_log_begin()
+try
 {
     const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
@@ -209,8 +210,14 @@ rocblas_status rocsolver_log_begin()
 
     return rocblas_status_success;
 }
+catch(...)
+{
+    return exception_to_rocblas_status();
+}
+
 
 rocblas_status rocsolver_log_end()
+try
 {
     const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
@@ -238,8 +245,14 @@ rocblas_status rocsolver_log_end()
 
     return rocblas_status_success;
 }
+catch(...)
+{
+    return exception_to_rocblas_status();
+}
+
 
 rocblas_status rocsolver_log_set_layer_mode(const rocblas_layer_mode_flags layer_mode)
+try
 {
     const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
@@ -255,8 +268,14 @@ rocblas_status rocsolver_log_set_layer_mode(const rocblas_layer_mode_flags layer
 
     return rocblas_status_success;
 }
+catch(...)
+{
+    return exception_to_rocblas_status();
+}
+
 
 rocblas_status rocsolver_log_set_max_levels(const rocblas_int max_levels)
+try
 {
     const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
@@ -274,8 +293,14 @@ rocblas_status rocsolver_log_set_max_levels(const rocblas_int max_levels)
 
     return rocblas_status_success;
 }
+catch(...)
+{
+    return exception_to_rocblas_status();
+}
+
 
 rocblas_status rocsolver_log_restore_defaults(void)
+try
 {
     const std::lock_guard<std::mutex> lock(rocsolver_logger::_mutex);
 
@@ -291,6 +316,11 @@ rocblas_status rocsolver_log_restore_defaults(void)
 
     return rocblas_status_success;
 }
+catch(...)
+{
+    return exception_to_rocblas_status();
+}
+
 }
 
 /***************************************************************************
