@@ -367,34 +367,34 @@ TEST_P(HEGST, strided_batched__double_complex)
     testing_sygsx_hegsx<false, true, 1, rocblas_double_complex>(arg);
 }
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         SYGS2,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          SYGS2,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
 
 INSTANTIATE_TEST_SUITE_P(checkin_lapack,
                          SYGS2,
                          Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         HEGS2,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          HEGS2,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
 
 INSTANTIATE_TEST_SUITE_P(checkin_lapack,
                          HEGS2,
                          Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         SYGST,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          SYGST,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
 
-INSTANTIATE_TEST_SUITE_P(checkin_lapack,
-                         SYGST,
-                         Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(checkin_lapack,
+//                          SYGST,
+//                          Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         HEGST,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          HEGST,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(type_range)));
 
-INSTANTIATE_TEST_SUITE_P(checkin_lapack,
-                         HEGST,
-                         Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
+// INSTANTIATE_TEST_SUITE_P(checkin_lapack,
+//                          HEGST,
+//                          Combine(ValuesIn(matrix_size_range), ValuesIn(type_range)));
