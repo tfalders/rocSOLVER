@@ -33,14 +33,14 @@ const vector<vector<int>> matrix_size_range = {
     {-1, 1, 1, 0},
     {20, 5, 5, 0},
     // normal (valid) samples
-    {20, 30, 20, 0},
-    {35, 35, 35, 1},
-    {50, 50, 60, 0}};
+    {20, 30, 20, 1},
+    {35, 35, 35, 0},
+    {50, 50, 60, 1}};
 
 // for daily_lapack tests
 const vector<vector<int>> large_matrix_size_range = {
     {192, 192, 192, 0},
-    {256, 270, 256, 1},
+    {256, 270, 256, 0},
     {300, 300, 310, 0},
 };
 
