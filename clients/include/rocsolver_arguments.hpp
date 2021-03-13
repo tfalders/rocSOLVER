@@ -129,9 +129,9 @@ public:
     }
 
     // TODO: Remove these fields
-    rocblas_int M = 128;
-    rocblas_int N = 128;
-    rocblas_int K = 128;
+    rocblas_int M = 12;
+    rocblas_int N = 12;
+    rocblas_int K = 12;
     rocblas_int S4 = 128;
     rocblas_int k1 = 1;
     rocblas_int k2 = 2;
