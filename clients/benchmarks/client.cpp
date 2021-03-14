@@ -92,6 +92,12 @@ try
             "Typically, a sub-dimension of a problem.\n"
             "                           The number of Householder reflexions in a transformation, for example.\n")
 
+//
+// KEEP USING SAME FORMAT FOR ALL NAMES/ARGUMENTS ONCE DEFINED
+//
+//
+
+
         ("size4,S4",
          value<rocblas_int>(&argus.S4)->default_value(1024),
          "Extra size value.")
