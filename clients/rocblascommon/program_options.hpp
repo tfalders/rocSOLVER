@@ -385,7 +385,7 @@ public:
             << "If no default value is defined, the program will try to calculate a suitable value depending on the context\n"
             << "of the problem and the tested function; if this is not possible, the program will abort with error.\n\n"   
             << "Example: ./rocsolver-bench -f getf2_batched -m 30 --lda 75 --batch_count 350\n"
-            << "This will test getf2_batched with a set of 350 random 30x128 matrices. strideP will be set to be equal 30.\n\n"
+            << "This will test getf2_batched with a set of 350 random 30x128 matrices. strideP will be set to be equal to 30.\n\n"
             << "Options:\n";
 
         // Iterate across all options

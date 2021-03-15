@@ -30,7 +30,7 @@ try
         ("function,f",
          value<std::string>(&function)->default_value("potf2"),
             "The LAPACK function to test.\n"
-            "                           Options are: getf2, getfr, gesvd_batched, etc.\n"
+            "                           Options are: getf2, getrf, gesvd_batched, etc.\n"
             "                           ")
 
         ("precision,r",
