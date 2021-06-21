@@ -116,13 +116,14 @@ void potrs_initData(const rocblas_handle handle,
                     const rocblas_stride stB,
                     const rocblas_int bc,
                     Th& hA,
-                    Th& hB)
+                    Th& hB,
+                    Th& hX)
 {
     if(CPU)
     {
         host_strided_batch_vector<T> hATmp(size_t(lda) * n, 1, stA, bc);
         rocblas_init<T>(hATmp, true);
-        rocblas_init<T>(hB, true);
+        rocblas_init<T>(hX, true);
 
         for(rocblas_int b = 0; b < bc; ++b)
         {
@@ -132,6 +133,10 @@ void potrs_initData(const rocblas_handle handle,
 
             for(rocblas_int i = 0; i < n; i++)
                 hA[b][i + i * lda] += 400;
+
+            // compute B from X
+            cblas_symm_hemm<T>(rocblas_side_left, uplo, n, nrhs, 1, hA[b], lda, hX[b], ldb, 0,
+                               hB[b], ldb);
         }
 
         // do the Cholesky factorization of matrix A w/ the reference LAPACK routine
@@ -164,23 +169,23 @@ void potrs_getError(const rocblas_handle handle,
                     const rocblas_int bc,
                     Th& hA,
                     Th& hB,
-                    Th& hBRes,
+                    Th& hX,
                     double* max_err)
 {
     // input data initialization
-    potrs_initData<true, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB);
+    potrs_initData<true, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB, hX);
 
     // execute computations
     // GPU lapack
     CHECK_ROCBLAS_ERROR(rocsolver_potrs(STRIDED, handle, uplo, n, nrhs, dA.data(), lda, stA,
                                         dB.data(), ldb, stB, bc));
-    CHECK_HIP_ERROR(hBRes.transfer_from(dB));
+    CHECK_HIP_ERROR(hB.transfer_from(dB));
 
-    // CPU lapack
-    for(rocblas_int b = 0; b < bc; ++b)
-    {
-        cblas_potrs<T>(uplo, n, nrhs, hA[b], lda, hB[b], ldb);
-    }
+    // // CPU lapack
+    // for(rocblas_int b = 0; b < bc; ++b)
+    // {
+    //     cblas_potrs<T>(uplo, n, nrhs, hA[b], lda, hB[b], ldb);
+    // }
 
     // error is ||hB - hBRes|| / ||hB||
     // (THIS DOES NOT ACCOUNT FOR NUMERICAL REPRODUCIBILITY ISSUES.
@@ -190,7 +195,7 @@ void potrs_getError(const rocblas_handle handle,
     *max_err = 0;
     for(rocblas_int b = 0; b < bc; ++b)
     {
-        err = norm_error('I', n, nrhs, ldb, hB[b], hBRes[b]);
+        err = norm_error('I', n, nrhs, ldb, hX[b], hB[b]);
         *max_err = err > *max_err ? err : *max_err;
     }
 }
@@ -209,6 +214,7 @@ void potrs_getPerfData(const rocblas_handle handle,
                        const rocblas_int bc,
                        Th& hA,
                        Th& hB,
+                       Th& hX,
                        double* gpu_time_used,
                        double* cpu_time_used,
                        const rocblas_int hot_calls,
@@ -217,7 +223,8 @@ void potrs_getPerfData(const rocblas_handle handle,
 {
     if(!perf)
     {
-        potrs_initData<true, false, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB);
+        potrs_initData<true, false, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
+                                       hB, hX);
 
         // cpu-lapack performance (only if not in perf mode)
         *cpu_time_used = get_time_us_no_sync();
@@ -228,12 +235,13 @@ void potrs_getPerfData(const rocblas_handle handle,
         *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
     }
 
-    potrs_initData<true, false, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB);
+    potrs_initData<true, false, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB, hX);
 
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
-        potrs_initData<false, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB);
+        potrs_initData<false, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
+                                       hB, hX);
 
         CHECK_ROCBLAS_ERROR(rocsolver_potrs(STRIDED, handle, uplo, n, nrhs, dA.data(), lda, stA,
                                             dB.data(), ldb, stB, bc));
@@ -252,7 +260,8 @@ void potrs_getPerfData(const rocblas_handle handle,
 
     for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
-        potrs_initData<false, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA, hB);
+        potrs_initData<false, true, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
+                                       hB, hX);
 
         start = get_time_us_sync(stream);
         rocsolver_potrs(STRIDED, handle, uplo, n, nrhs, dA.data(), lda, stA, dB.data(), ldb, stB, bc);
@@ -273,12 +282,11 @@ void testing_potrs(Arguments& argus)
     rocblas_int ldb = argus.get<rocblas_int>("ldb", n);
     rocblas_stride stA = argus.get<rocblas_stride>("strideA", lda * n);
     rocblas_stride stB = argus.get<rocblas_stride>("strideB", ldb * nrhs);
+    rocblas_stride stX = ldb * nrhs;
 
     rocblas_fill uplo = char2rocblas_fill(uploC);
     rocblas_int bc = argus.batch_count;
     rocblas_int hot_calls = argus.iters;
-
-    rocblas_stride stBRes = (argus.unit_check || argus.norm_check) ? stB : 0;
 
     // check non-supported values
     // N/A
@@ -286,9 +294,8 @@ void testing_potrs(Arguments& argus)
     // determine sizes
     size_t size_A = size_t(lda) * n;
     size_t size_B = size_t(ldb) * nrhs;
+    size_t size_X = size_t(ldb) * nrhs;
     double max_error = 0, gpu_time_used = 0, cpu_time_used = 0;
-
-    size_t size_BRes = (argus.unit_check || argus.norm_check) ? size_B : 0;
 
     // check invalid sizes
     bool invalid_size = (n < 0 || nrhs < 0 || lda < n || ldb < n || bc < 0);
@@ -336,7 +343,7 @@ void testing_potrs(Arguments& argus)
         // memory allocations
         host_batch_vector<T> hA(size_A, 1, bc);
         host_batch_vector<T> hB(size_B, 1, bc);
-        host_batch_vector<T> hBRes(size_BRes, 1, bc);
+        host_batch_vector<T> hX(size_X, 1, bc);
         device_batch_vector<T> dA(size_A, 1, bc);
         device_batch_vector<T> dB(size_B, 1, bc);
         if(size_A)
@@ -359,12 +366,12 @@ void testing_potrs(Arguments& argus)
         // check computations
         if(argus.unit_check || argus.norm_check)
             potrs_getError<STRIDED, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
-                                       hB, hBRes, &max_error);
+                                       hB, hX, &max_error);
 
         // collect performance data
         if(argus.timing)
             potrs_getPerfData<STRIDED, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
-                                          hB, &gpu_time_used, &cpu_time_used, hot_calls,
+                                          hB, hX, &gpu_time_used, &cpu_time_used, hot_calls,
                                           argus.profile, argus.perf);
     }
 
@@ -373,7 +380,7 @@ void testing_potrs(Arguments& argus)
         // memory allocations
         host_strided_batch_vector<T> hA(size_A, 1, stA, bc);
         host_strided_batch_vector<T> hB(size_B, 1, stB, bc);
-        host_strided_batch_vector<T> hBRes(size_BRes, 1, stBRes, bc);
+        host_strided_batch_vector<T> hX(size_X, 1, stX, bc);
         device_strided_batch_vector<T> dA(size_A, 1, stA, bc);
         device_strided_batch_vector<T> dB(size_B, 1, stB, bc);
         if(size_A)
@@ -396,12 +403,12 @@ void testing_potrs(Arguments& argus)
         // check computations
         if(argus.unit_check || argus.norm_check)
             potrs_getError<STRIDED, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
-                                       hB, hBRes, &max_error);
+                                       hB, hX, &max_error);
 
         // collect performance data
         if(argus.timing)
             potrs_getPerfData<STRIDED, T>(handle, uplo, n, nrhs, dA, lda, stA, dB, ldb, stB, bc, hA,
-                                          hB, &gpu_time_used, &cpu_time_used, hot_calls,
+                                          hB, hX, &gpu_time_used, &cpu_time_used, hot_calls,
                                           argus.profile, argus.perf);
     }
 
