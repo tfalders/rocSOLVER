@@ -25,8 +25,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(GETF2_MAX_THDS)
                         const rocblas_int shiftP,
                         const rocblas_stride strideP,
                         rocblas_int* infoA,
-                        const rocblas_int batch_count,
-                        const int pivot)
+                        const rocblas_int batch_count)
 {
     using S = decltype(std::real(T{}));
 
@@ -40,7 +39,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(GETF2_MAX_THDS)
     // batch instance
     T* A = load_ptr_batch<T>(AA, id, shiftA, strideA);
     rocblas_int* ipiv;
-    if(pivot)
+    if(ipivA != nullptr)
         ipiv = load_ptr_batch<rocblas_int>(ipivA, id, shiftP, strideP);
     rocblas_int* info = infoA + id;
 
@@ -74,7 +73,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(GETF2_MAX_THDS)
         // search pivot index
         pivot_index = k;
         pivot_value = common[k];
-        if(pivot)
+        if(ipivA != nullptr)
         {
             for(int i = k + 1; i < m; ++i)
             {
@@ -119,7 +118,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(GETF2_MAX_THDS)
     }
 
     // write results to global memory
-    if(myrow < DIM && pivot)
+    if(myrow < DIM && ipivA != nullptr)
         ipiv[myrow] = mypiv;
     if(myrow == 0)
         *info = myinfo;
@@ -143,12 +142,11 @@ rocblas_status getf2_run_small(rocblas_handle handle,
                                const rocblas_int shiftP,
                                const rocblas_stride strideP,
                                rocblas_int* info,
-                               const rocblas_int batch_count,
-                               const rocblas_int pivot)
+                               const rocblas_int batch_count)
 {
 #define RUN_LUFACT_SMALL(DIM)                                                                      \
     hipLaunchKernelGGL((LUfact_small_kernel<DIM, T>), grid, block, lmemsize, stream, m, A, shiftA, \
-                       lda, strideA, ipiv, shiftP, strideP, info, batch_count, pivot)
+                       lda, strideA, ipiv, shiftP, strideP, info, batch_count)
 
     // determine sizes
     std::vector<int> opval{GETF2_OPTIM_NGRP};
@@ -254,7 +252,6 @@ template rocblas_status getf2_run_small<float, float*>(rocblas_handle,
                                                        const rocblas_int,
                                                        const rocblas_stride,
                                                        rocblas_int*,
-                                                       const rocblas_int,
                                                        const rocblas_int);
 
 template rocblas_status getf2_run_small<double, double*>(rocblas_handle,
@@ -268,7 +265,6 @@ template rocblas_status getf2_run_small<double, double*>(rocblas_handle,
                                                          const rocblas_int,
                                                          const rocblas_stride,
                                                          rocblas_int*,
-                                                         const rocblas_int,
                                                          const rocblas_int);
 
 template rocblas_status
@@ -283,7 +279,6 @@ template rocblas_status
                                                                    const rocblas_int,
                                                                    const rocblas_stride,
                                                                    rocblas_int*,
-                                                                   const rocblas_int,
                                                                    const rocblas_int);
 
 template rocblas_status
@@ -298,7 +293,6 @@ template rocblas_status
                                                                      const rocblas_int,
                                                                      const rocblas_stride,
                                                                      rocblas_int*,
-                                                                     const rocblas_int,
                                                                      const rocblas_int);
 
 // batched cases
@@ -313,7 +307,6 @@ template rocblas_status getf2_run_small<float, float* const*>(rocblas_handle,
                                                               const rocblas_int,
                                                               const rocblas_stride,
                                                               rocblas_int*,
-                                                              const rocblas_int,
                                                               const rocblas_int);
 
 template rocblas_status getf2_run_small<double, double* const*>(rocblas_handle,
@@ -327,7 +320,6 @@ template rocblas_status getf2_run_small<double, double* const*>(rocblas_handle,
                                                                 const rocblas_int,
                                                                 const rocblas_stride,
                                                                 rocblas_int*,
-                                                                const rocblas_int,
                                                                 const rocblas_int);
 
 template rocblas_status getf2_run_small<rocblas_float_complex, rocblas_float_complex* const*>(
@@ -342,7 +334,6 @@ template rocblas_status getf2_run_small<rocblas_float_complex, rocblas_float_com
     const rocblas_int,
     const rocblas_stride,
     rocblas_int*,
-    const rocblas_int,
     const rocblas_int);
 
 template rocblas_status getf2_run_small<rocblas_double_complex, rocblas_double_complex* const*>(
@@ -357,7 +348,6 @@ template rocblas_status getf2_run_small<rocblas_double_complex, rocblas_double_c
     const rocblas_int,
     const rocblas_stride,
     rocblas_int*,
-    const rocblas_int,
     const rocblas_int);
 
 #endif // OPTIMAL

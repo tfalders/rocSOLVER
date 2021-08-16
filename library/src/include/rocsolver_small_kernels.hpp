@@ -29,8 +29,7 @@ rocblas_status getf2_run_small(rocblas_handle handle,
                                const rocblas_int shiftP,
                                const rocblas_stride strideP,
                                rocblas_int* info,
-                               const rocblas_int batch_count,
-                               const rocblas_int pivot);
+                               const rocblas_int batch_count);
 
 template <typename T, typename U>
 rocblas_status getri_run_small(rocblas_handle handle,
