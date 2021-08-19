@@ -31,7 +31,9 @@ ROCSOLVER_KERNEL void __launch_bounds__(TRTRI_MAX_COLS)
 
     // batch instance
     T* A = load_ptr_batch<T>(AA, b, shiftA, strideA);
-    rocblas_int* ipiv = load_ptr_batch<rocblas_int>(ipivA, b, shiftP, strideP);
+    rocblas_int* ipiv;
+    if(ipivA != nullptr)
+        ipiv = load_ptr_batch<rocblas_int>(ipivA, b, shiftP, strideP);
 
     // shared memory (for communication between threads in group)
     __shared__ T common[DIM];
@@ -117,15 +119,18 @@ ROCSOLVER_KERNEL void __launch_bounds__(TRTRI_MAX_COLS)
     }
 
     // apply pivots (getri_pivot)
-#pragma unroll
-    for(rocblas_int j = DIM - 2; j >= 0; j--)
+    if(ipivA != nullptr)
     {
-        jp = ipiv[j] - 1;
-        if(jp != j)
+#pragma unroll
+        for(rocblas_int j = DIM - 2; j >= 0; j--)
         {
-            temp = rA[j];
-            rA[j] = rA[jp];
-            rA[jp] = temp;
+            jp = ipiv[j] - 1;
+            if(jp != j)
+            {
+                temp = rA[j];
+                rA[j] = rA[jp];
+                rA[jp] = temp;
+            }
         }
     }
 
