@@ -389,7 +389,8 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                                         rocblas_int* pivotidx,
                                         rocblas_int* iipiv,
                                         rocblas_int* iinfo,
-                                        bool optim_mem)
+                                        const bool optim_mem,
+                                        const bool pivot)
 {
     ROCSOLVER_ENTER("getrf", "m:", m, "n:", n, "shiftA:", shiftA, "lda:", lda, "shiftP:", shiftP,
                     "bc:", batch_count);
@@ -424,7 +425,6 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
     rocblas_int dim = min(m, n); // total number of pivots
     rocblas_int jb, jb1, jb2, blk, blk1, blk2;
     static constexpr bool ISBATCHED = BATCHED || STRIDED;
-    const bool pivot = (ipiv != nullptr);
     blocks = pivot ? (n - 1) / BLOCKSIZE + 1 : 1;
     grid = dim3(blocks, batch_count, 1);
     threads = dim3((pivot ? BLOCKSIZE : 1), 1, 1);
@@ -435,7 +435,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
     if(blk == 1)
         return rocsolver_getf2_template<ISBATCHED, T>(handle, m, n, A, shiftA, lda, strideA, ipiv,
                                                       shiftP, strideP, info, batch_count, scalars,
-                                                      pivotval, pivotidx);
+                                                      pivotval, pivotidx, pivot);
 
     // MAIN LOOP =====>
     for(rocblas_int j = 0; j < dim; j += blk)
@@ -448,29 +448,20 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
         {
             jb1 = min(jb - k, blk1); // number of columns/pivots in the inner block
 
-            if(pivot)
-            {
-                // factorize inner block panel
-                rocsolver_getf2_template<ISBATCHED, T>(
-                    handle, m - j - k, jb1, A, shiftA + idx2D(j + k, j + k, lda), lda, strideA,
-                    iipiv, 0, jb1, iinfo, batch_count, scalars, pivotval, pivotidx);
+            // factorize inner block panel
+            rocsolver_getf2_template<ISBATCHED, T>(
+                handle, m - j - k, jb1, A, shiftA + idx2D(j + k, j + k, lda), lda, strideA, iipiv,
+                0, jb1, iinfo, batch_count, scalars, pivotval, pivotidx, pivot);
 
+            if(pivot)
                 // adjust pivots, swap rows and check singularity
                 hipLaunchKernelGGL(getrf_check_singularity<T>, grid, threads, 0, stream, n, j + k,
                                    jb1, A, shiftA, lda, strideA, ipiv, shiftP, strideP, iipiv,
                                    iinfo, info);
-            }
             else
-            {
-                // factorize inner block panel
-                rocsolver_getf2_template<ISBATCHED, T>(
-                    handle, m - j - k, jb1, A, shiftA + idx2D(j + k, j + k, lda), lda, strideA,
-                    nullptr, 0, jb1, iinfo, batch_count, scalars, pivotval, pivotidx);
-
                 // check singularity
                 hipLaunchKernelGGL(getrf_npvt_check_singularity<T>, grid, threads, 0, stream, j + k,
                                    iinfo, info);
-            }
 
             // update trailing sub-block
             if(k + jb1 < jb)

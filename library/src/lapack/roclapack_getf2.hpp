@@ -390,7 +390,8 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
                                         const rocblas_int batch_count,
                                         T* scalars,
                                         T* pivotval,
-                                        rocblas_int* pivotidx)
+                                        rocblas_int* pivotidx,
+                                        const bool pivot)
 {
     ROCSOLVER_ENTER("getf2", "m:", m, "n:", n, "shiftA:", shiftA, "lda:", lda, "shiftP:", shiftP,
                     "bc:", batch_count);
@@ -406,7 +407,6 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
     dim3 gridReset(blocksReset, 1, 1);
     dim3 threadsReset(BLOCKSIZE, 1, 1);
     rocblas_int dim = min(m, n); // total number of pivots
-    const bool pivot = (ipiv != nullptr);
 
     // info=0 (starting with a nonsingular matrix)
     hipLaunchKernelGGL(reset_info, gridReset, threadsReset, 0, stream, info, batch_count, 0);
@@ -419,7 +419,7 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
     // Use optimized LU factorization for the right sizes
     if(n <= GETF2_MAX_COLS && m <= GETF2_MAX_THDS)
         return getf2_run_small<T>(handle, m, n, A, shiftA, lda, strideA, ipiv, shiftP, strideP,
-                                  info, batch_count);
+                                  info, batch_count, pivot);
 #endif
 
     // everything must be executed with scalars on the device

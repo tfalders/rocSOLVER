@@ -82,7 +82,7 @@ rocblas_status rocsolver_getrf_batched_impl(rocblas_handle handle,
     return rocsolver_getrf_template<true, false, T>(
         handle, m, n, A, shiftA, lda, strideA, ipiv, shiftP, strideP, info, batch_count,
         (T*)scalars, work1, work2, work3, work4, (T*)pivotval, (rocblas_int*)pivotidx,
-        (rocblas_int*)iipiv, (rocblas_int*)iinfo, optim_mem);
+        (rocblas_int*)iipiv, (rocblas_int*)iinfo, optim_mem, pivot);
 }
 
 /*
