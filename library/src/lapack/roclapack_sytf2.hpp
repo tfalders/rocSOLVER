@@ -47,10 +47,10 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
     int kstep, kp, kk;
 
     // shared variables for iamax
-    __shared__ S absakk;
-    __shared__ S colmax;
-    __shared__ S rowmax;
-    __shared__ T sval[SYTF2_MAX_THDS];
+    __shared__ float absakk;
+    __shared__ float colmax;
+    __shared__ float rowmax;
+    __shared__ float sval[SYTF2_MAX_THDS];
     __shared__ rocblas_int sidx[SYTF2_MAX_THDS];
     __shared__ rocblas_int imax;
 
@@ -66,8 +66,8 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
         if(tid == 0)
         {
             imax = sidx[0] - 1;
-            colmax = aabs<S>(sval[0]);
-            absakk = aabs<S>(A[k + k * lda]);
+            colmax = sval[0];
+            absakk = (float)aabs<S>(A[k + k * lda]);
         }
         __syncthreads();
 
@@ -88,13 +88,13 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
                 // find max off-diagonal entry in row i
                 iamax<SYTF2_MAX_THDS>(tid, k - imax, A + imax + (imax + 1) * lda, lda, sval, sidx);
                 if(tid == 0)
-                    rowmax = aabs<S>(sval[0]);
+                    rowmax = sval[0];
 
                 if(imax > 0)
                 {
                     iamax<SYTF2_MAX_THDS>(tid, imax, A + imax * lda, 1, sval, sidx);
                     if(tid == 0)
-                        rowmax = max(rowmax, aabs<S>(sval[0]));
+                        rowmax = max(rowmax, sval[0]);
                 }
                 __syncthreads();
 
@@ -231,10 +231,10 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
     int kstep, kp, kk;
 
     // shared variables for iamax
-    __shared__ S absakk;
-    __shared__ S colmax;
-    __shared__ S rowmax;
-    __shared__ T sval[SYTF2_MAX_THDS];
+    __shared__ float absakk;
+    __shared__ float colmax;
+    __shared__ float rowmax;
+    __shared__ float sval[SYTF2_MAX_THDS];
     __shared__ rocblas_int sidx[SYTF2_MAX_THDS];
     __shared__ rocblas_int imax;
 
@@ -250,8 +250,8 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
         if(tid == 0)
         {
             imax = k + sidx[0];
-            colmax = aabs<S>(sval[0]);
-            absakk = aabs<S>(A[k + k * lda]);
+            colmax = sval[0];
+            absakk = (float)aabs<S>(A[k + k * lda]);
         }
         __syncthreads();
 
@@ -272,14 +272,14 @@ ROCSOLVER_KERNEL void __launch_bounds__(SYTF2_MAX_THDS)
                 // find max off-diagonal entry in row i
                 iamax<SYTF2_MAX_THDS>(tid, imax - k, A + imax + k * lda, lda, sval, sidx);
                 if(tid == 0)
-                    rowmax = aabs<S>(sval[0]);
+                    rowmax = sval[0];
 
                 if(imax < n - 1)
                 {
                     iamax<SYTF2_MAX_THDS>(tid, n - imax - 1, A + (imax + 1) + imax * lda, 1, sval,
                                           sidx);
                     if(tid == 0)
-                        rowmax = max(rowmax, aabs<S>(sval[0]));
+                        rowmax = max(rowmax, sval[0]);
                 }
                 __syncthreads();
 

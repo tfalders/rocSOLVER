@@ -163,13 +163,12 @@ ROCSOLVER_KERNEL void __launch_bounds__(IAMAX_THDS) getf2_iamax(const rocblas_in
     T* x = load_ptr_batch<T>(xx, bid, shiftx, stridex);
 
     // shared memory setup
-    __shared__ T sval[IAMAX_THDS];
+    __shared__ float sval[IAMAX_THDS];
     __shared__ rocblas_int sidx[IAMAX_THDS];
 
     iamax<IAMAX_THDS>(tid, m, x, 1, sval, sidx);
 
     // write results back to global memory
-    // (after the reduction, the maximum of the elements is in sval[0] and sidx[0])
     if(tid == 0)
         pivotidx[bid] = sidx[0];
 }

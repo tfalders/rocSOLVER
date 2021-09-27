@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <hip/hip_runtime.h>
+
 #include "lib_device_helpers.hpp"
 #include "lib_macros.hpp"
 #include "rocsolver.h"
@@ -662,13 +664,13 @@ __device__ void iamax(const rocblas_int tid,
                       const rocblas_int n,
                       T* A,
                       const rocblas_int incA,
-                      T* sval,
+                      float* sval,
                       rocblas_int* sidx)
 {
     using S = decltype(std::real(T{}));
 
     // local memory setup
-    T val1, val2;
+    float val1, val2;
     rocblas_int idx1, idx2;
 
     // read into shared memory while doing initial step
@@ -677,9 +679,9 @@ __device__ void iamax(const rocblas_int tid,
     idx1 = INT_MAX;
     for(int i = tid; i < n; i += MAX_THDS)
     {
-        val2 = A[i * incA];
+        val2 = (float)(aabs<S>(A[i * incA]));
         idx2 = i + 1; // add one to make it 1-based index
-        if(aabs<S>(val1) < aabs<S>(val2) || idx1 == INT_MAX)
+        if(val1 < val2 || idx1 == INT_MAX)
         {
             val1 = val2;
             idx1 = idx2;
@@ -703,7 +705,7 @@ __device__ void iamax(const rocblas_int tid,
         {
             val2 = sval[tid + i];
             idx2 = sidx[tid + i];
-            if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+            if(val1 < val2 || (val1 == val2 && idx1 > idx2))
             {
                 sval[tid] = val1 = val2;
                 sidx[tid] = idx1 = idx2;
@@ -714,63 +716,66 @@ __device__ void iamax(const rocblas_int tid,
 
     // from this point, as all the active threads will form a single wavefront
     // and work in lock-step, there is no need for synchronizations and barriers
+    // and we can use cross-lane operations to move data between lanes
     if(tid < warpSize)
     {
-        if(warpSize >= 64)
+        val2 = sval[tid + warpSize];
+        idx2 = sidx[tid + warpSize];
+        if(val1 < val2 || (val1 == val2 && idx1 > idx2))
         {
-            val2 = sval[tid + 64];
-            idx2 = sidx[tid + 64];
-            if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+            val1 = val2;
+            idx1 = idx2;
+        }
+
+#pragma unroll
+        for(int i = warpSize / 2; i >= 16; i /= 2)
+        {
+            val2 = __hip_ds_bpermute((tid + i) * 4, val1);
+            idx2 = __hip_ds_bpermute((tid + i) * 4, idx1);
+            if(val1 < val2 || (val1 == val2 && idx1 > idx2))
             {
-                sval[tid] = val1 = val2;
-                sidx[tid] = idx1 = idx2;
+                val1 = val2;
+                idx1 = idx2;
             }
         }
-        val2 = sval[tid + 32];
-        idx2 = sidx[tid + 32];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+
+        // use dpp shift left to move data between last 16 lanes
+        val2 = __builtin_amdgcn_mov_dpp(val1, 0x108, 0xf, 0xf, false);
+        idx2 = __builtin_amdgcn_mov_dpp(idx1, 0x108, 0xf, 0xf, false);
+        if(val1 < val2 || (val1 == val2 && idx1 > idx2))
         {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
+            val1 = val2;
+            idx1 = idx2;
         }
-        val2 = sval[tid + 16];
-        idx2 = sidx[tid + 16];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+        val2 = __builtin_amdgcn_mov_dpp(val1, 0x104, 0xf, 0xf, false);
+        idx2 = __builtin_amdgcn_mov_dpp(idx1, 0x104, 0xf, 0xf, false);
+        if(val1 < val2 || (val1 == val2 && idx1 > idx2))
         {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
+            val1 = val2;
+            idx1 = idx2;
         }
-        val2 = sval[tid + 8];
-        idx2 = sidx[tid + 8];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+        val2 = __builtin_amdgcn_mov_dpp(val1, 0x102, 0xf, 0xf, false);
+        idx2 = __builtin_amdgcn_mov_dpp(idx1, 0x102, 0xf, 0xf, false);
+        if(val1 < val2 || (val1 == val2 && idx1 > idx2))
         {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
+            val1 = val2;
+            idx1 = idx2;
         }
-        val2 = sval[tid + 4];
-        idx2 = sidx[tid + 4];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
+        val2 = __builtin_amdgcn_mov_dpp(val1, 0x101, 0xf, 0xf, false);
+        idx2 = __builtin_amdgcn_mov_dpp(idx1, 0x101, 0xf, 0xf, false);
+        if(val1 < val2 || (val1 == val2 && idx1 > idx2))
         {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 2];
-        idx2 = sidx[tid + 2];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 1];
-        idx2 = sidx[tid + 1];
-        if(aabs<S>(val1) < aabs<S>(val2) || (aabs<S>(val1) == aabs<S>(val2) && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
+            val1 = val2;
+            idx1 = idx2;
         }
     }
 
-    // after the reduction, the maximum of the elements is in sval[0] and sidx[0]
+    // put the maximum of the elements in sval[0] and sidx[0]
+    if(tid == 0)
+    {
+        sval[0] = val1;
+        sidx[0] = idx1;
+    }
 }
 
 /** AXPY computes a constant times a vector plus a vector. **/
