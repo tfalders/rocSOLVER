@@ -1,5 +1,5 @@
 # ########################################################################
-# Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+# Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 # ########################################################################
 
 find_package(GTest REQUIRED)
@@ -64,6 +64,7 @@ set(rocauxiliary_test_source
   sterf_gtest.cpp
   steqr_gtest.cpp
   stedc_gtest.cpp
+  stebz_gtest.cpp
   latrd_gtest.cpp
   # symmetric matrices
   lasyf_gtest.cpp
