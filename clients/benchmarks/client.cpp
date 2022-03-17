@@ -338,7 +338,7 @@ try
         ("order",
          value<char>()->default_value('E'),
             "E = entire matrix, B = by blocks.\n"
-            "                           Indicates whether the computed eigenvalues are ordered by blocks on for the entire matrix.\n"
+            "                           Indicates whether the computed eigenvalues are ordered by blocks or for the entire matrix.\n"
             "                           Only applicable to stebz.\n"
             "                           ")
 
@@ -360,6 +360,14 @@ try
             "Upper index in ordered subset of eigenvalues.\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
+
+        ("range",
+         value<char>()->default_value('A'),
+            "A = all eigenvalues, V = in (vlow, vup], I = from the ilow-th to the iup-th.\n"
+            "                           For partial eigenvalue decompositions, it indicates the type of interval in which\n"
+            "                           the eigenvalues will be found.\n"
+            "                           ")
+
         ("vlow",
          value<double>(),
             "Lower bound of half-open interval (vlow, vup].\n"
@@ -371,7 +379,6 @@ try
             "Upper bound of half-open interval (vlow, vup].\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
-
 
         // other options
         ("direct",
@@ -402,12 +409,6 @@ try
          value<char>()->default_value('1'),
             "1 = Ax, 2 = ABx, 3 = BAx.\n"
             "                           Problem type for generalized eigenproblems.\n"
-            "                           ")
-
-        ("range",
-         value<char>()->default_value('A'),
-            "A = all eigenvalues, V = in (vlow, vup], I = from the ilow-th to the iup-th.\n"
-            "                           For partial eigenvalue decompositions, it indicates the type of interval in which the eigenvalues will be found.\n"
             "                           ")
 
         ("side",
@@ -473,9 +474,9 @@ try
     argus.validate_svect("right_svect");
     argus.validate_workmode("fast_alg");
     argus.validate_evect("evect");
+    argus.validate_erange("range");
+    argus.validate_eorder("order");
     argus.validate_itype("itype");
-    argus.validate_evrange("range");
-    argus.validate_evorder("order");
 
     // prepare logging infrastructure and ignore environment variables
     rocsolver_log_begin();
