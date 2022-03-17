@@ -82,7 +82,7 @@ __device__ rocblas_int sturm_count(const rocblas_int n, T* D, T* E, T pmin, T c)
 /** This kernel deals with the case n = 1
     (one split block and a single eigenvalue which is the element in D) **/
 template <typename T, typename U>
-ROCSOLVER_KERNEL void stebz_case1_kernel(const rocblas_eval_range range,
+ROCSOLVER_KERNEL void stebz_case1_kernel(const rocblas_erange range,
                                          const T vlow,
                                          const T vup,
                                          U DA,
@@ -114,7 +114,7 @@ ROCSOLVER_KERNEL void stebz_case1_kernel(const rocblas_eval_range range,
 
         // check if diagonal element is in range and return
         T d = D[0];
-        if(range == rocblas_range_value && (d <= vlow || d > vup))
+        if(range == rocblas_erange_value && (d <= vlow || d > vup))
         {
             nev[bid] = 0;
         }
@@ -131,7 +131,7 @@ ROCSOLVER_KERNEL void stebz_case1_kernel(const rocblas_eval_range range,
     for the computations in the iterative bisection **/
 template <typename T, typename U>
 ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
-    stebz_spliting_kernel(const rocblas_eval_range range,
+    stebz_spliting_kernel(const rocblas_erange range,
                           const rocblas_int n,
                           const T vlow,
                           const T vup,
@@ -238,11 +238,11 @@ ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
         // all the eigenvalues in matrix,
         T vl = 0;
         T vu = 0;
-        if(range == rocblas_range_index)
+        if(range == rocblas_erange_index)
         {
             // TO BE IMPLEMENTED...
         }
-        else if(range == rocblas_range_value)
+        else if(range == rocblas_erange_value)
         {
             vl = vlow;
             vu = vup;
@@ -258,7 +258,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
     the entire matrix **/
 template <typename T, typename U>
 ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
-    stebz_bisection_kernel(const rocblas_eval_range range,
+    stebz_bisection_kernel(const rocblas_erange range,
                            const rocblas_int n,
                            const T abstol,
                            U DA,
@@ -351,7 +351,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
             if(tid == 0)
             {
                 tmp = D[lc_bin];
-                if((range == rocblas_range_all)
+                if((range == rocblas_erange_all)
                    || (bounds[0] < tmp - pmin && bounds[1] >= tmp - pmin))
                 {
                     W[lc_bin] = tmp;
@@ -381,7 +381,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
             // initial interval is:
             gl = gl - bnorm * eps * lc_bdim - pmin;
             gu = gu + bnorm * eps * lc_bdim + pmin;
-            if(range != rocblas_range_all)
+            if(range != rocblas_erange_all)
             {
                 gl = std::max(gl, bounds[0]);
                 gu = std::min(gu, bounds[1]);
@@ -588,7 +588,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
 /** This kernel synthetize the results from all the independent
     split blocks of a given matrix **/
 template <typename T>
-ROCSOLVER_KERNEL void stebz_synthesis_kernel(const rocblas_eval_order order,
+ROCSOLVER_KERNEL void stebz_synthesis_kernel(const rocblas_eorder order,
                                              const rocblas_int n,
                                              rocblas_int* nev,
                                              rocblas_int* nsplit,
@@ -633,7 +633,7 @@ ROCSOLVER_KERNEL void stebz_synthesis_kernel(const rocblas_eval_order order,
 
         // if ordering is by split blocks, the computed eigenvalues are already in order
         // otherwise re-arrange from smallest to largest
-        if(order == rocblas_order_entire)
+        if(order == rocblas_eorder_entire)
         {
             rocblas_int s1, s2, bv;
             T v, vv;
@@ -714,8 +714,8 @@ void rocsolver_stebz_getMemorySize(const rocblas_int n,
 // Helper to check argument correctnesss
 template <typename T>
 rocblas_status rocsolver_stebz_argCheck(rocblas_handle handle,
-                                        const rocblas_eval_range range,
-                                        const rocblas_eval_order order,
+                                        const rocblas_erange range,
+                                        const rocblas_eorder order,
                                         const rocblas_int n,
                                         const T vlow,
                                         const T vup,
@@ -733,19 +733,19 @@ rocblas_status rocsolver_stebz_argCheck(rocblas_handle handle,
     // order is important for unit tests:
 
     // 1. invalid/non-supported values
-    if(range != rocblas_range_all && range != rocblas_range_value && range != rocblas_range_index)
+    if(range != rocblas_erange_all && range != rocblas_erange_value && range != rocblas_erange_index)
         return rocblas_status_invalid_value;
-    if(order != rocblas_order_blocks && order != rocblas_order_entire)
+    if(order != rocblas_eorder_blocks && order != rocblas_eorder_entire)
         return rocblas_status_invalid_value;
 
     // 2. invalid size
     if(n < 0)
         return rocblas_status_invalid_size;
-    if(range == rocblas_range_value && vlow >= vup)
+    if(range == rocblas_erange_value && vlow >= vup)
         return rocblas_status_invalid_size;
-    if(range == rocblas_range_index && (ilow < 1 || iup < 0))
+    if(range == rocblas_erange_index && (ilow < 1 || iup < 0))
         return rocblas_status_invalid_size;
-    if(range == rocblas_range_index && (iup > n || (n > 0 && ilow > iup)))
+    if(range == rocblas_erange_index && (iup > n || (n > 0 && ilow > iup)))
         return rocblas_status_invalid_size;
 
     // skip pointer check if querying memory size
@@ -762,8 +762,8 @@ rocblas_status rocsolver_stebz_argCheck(rocblas_handle handle,
 // stebz template function implementation
 template <typename T, typename U>
 rocblas_status rocsolver_stebz_template(rocblas_handle handle,
-                                        const rocblas_eval_range range,
-                                        const rocblas_eval_order order,
+                                        const rocblas_erange range,
+                                        const rocblas_eorder order,
                                         const rocblas_int n,
                                         const T vlow,
                                         const T vup,
@@ -798,7 +798,7 @@ rocblas_status rocsolver_stebz_template(rocblas_handle handle,
                     "shiftE:", shiftE, "bc:", batch_count);
 
     // case range = index is not yet implemented
-    if(range == rocblas_range_index)
+    if(range == rocblas_erange_index)
         return rocblas_status_not_implemented;
 
     // quick return (no batch)

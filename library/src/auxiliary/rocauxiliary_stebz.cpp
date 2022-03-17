@@ -6,8 +6,8 @@
 
 template <typename T>
 rocblas_status rocsolver_stebz_impl(rocblas_handle handle,
-                                    const rocblas_eval_range range,
-                                    const rocblas_eval_order order,
+                                    const rocblas_erange range,
+                                    const rocblas_eorder order,
                                     const rocblas_int n,
                                     const T vlow,
                                     const T vup,
@@ -86,8 +86,8 @@ rocblas_status rocsolver_stebz_impl(rocblas_handle handle,
 extern "C" {
 
 rocblas_status rocsolver_sstebz(rocblas_handle handle,
-                                const rocblas_eval_range range,
-                                const rocblas_eval_order order,
+                                const rocblas_erange range,
+                                const rocblas_eorder order,
                                 const rocblas_int n,
                                 const float vlow,
                                 const float vup,
@@ -108,8 +108,8 @@ rocblas_status rocsolver_sstebz(rocblas_handle handle,
 }
 
 rocblas_status rocsolver_dstebz(rocblas_handle handle,
-                                const rocblas_eval_range range,
-                                const rocblas_eval_order order,
+                                const rocblas_erange range,
+                                const rocblas_eorder order,
                                 const rocblas_int n,
                                 const double vlow,
                                 const double vup,

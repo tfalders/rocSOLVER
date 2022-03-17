@@ -1268,8 +1268,8 @@ inline rocblas_status
 
 /******************** STEBZ ********************/
 inline rocblas_status rocsolver_stebz(rocblas_handle handle,
-                                      rocblas_eval_range range,
-                                      rocblas_eval_order order,
+                                      rocblas_erange range,
+                                      rocblas_eorder order,
                                       rocblas_int n,
                                       float vlow,
                                       float vup,
@@ -1290,8 +1290,8 @@ inline rocblas_status rocsolver_stebz(rocblas_handle handle,
 }
 
 inline rocblas_status rocsolver_stebz(rocblas_handle handle,
-                                      rocblas_eval_range range,
-                                      rocblas_eval_order order,
+                                      rocblas_erange range,
+                                      rocblas_eorder order,
                                       rocblas_int n,
                                       double vlow,
                                       double vup,

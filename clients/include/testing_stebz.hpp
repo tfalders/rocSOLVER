@@ -13,8 +13,8 @@
 
 template <typename T, typename U>
 void stebz_checkBadArgs(const rocblas_handle handle,
-                        const rocblas_eval_range range,
-                        const rocblas_eval_order order,
+                        const rocblas_erange range,
+                        const rocblas_eorder order,
                         const rocblas_int n,
                         const T vlow,
                         const T vup,
@@ -36,10 +36,10 @@ void stebz_checkBadArgs(const rocblas_handle handle,
                           rocblas_status_invalid_handle);
 
     // values
-    EXPECT_ROCBLAS_STATUS(rocsolver_stebz(handle, rocblas_eval_range(-1), order, n, vlow, vup, ilow,
+    EXPECT_ROCBLAS_STATUS(rocsolver_stebz(handle, rocblas_erange(-1), order, n, vlow, vup, ilow,
                                           iup, abstol, dD, dE, dnev, dnsplit, dW, dIB, dIS, dinfo),
                           rocblas_status_invalid_value);
-    EXPECT_ROCBLAS_STATUS(rocsolver_stebz(handle, range, rocblas_eval_order(-1), n, vlow, vup, ilow,
+    EXPECT_ROCBLAS_STATUS(rocsolver_stebz(handle, range, rocblas_eorder(-1), n, vlow, vup, ilow,
                                           iup, abstol, dD, dE, dnev, dnsplit, dW, dIB, dIS, dinfo),
                           rocblas_status_invalid_value);
 
@@ -82,8 +82,8 @@ void testing_stebz_bad_arg()
     // safe arguments
     rocblas_local_handle handle;
     rocblas_int n = 2;
-    rocblas_eval_range range = rocblas_range_all;
-    rocblas_eval_order order = rocblas_order_entire;
+    rocblas_erange range = rocblas_erange_all;
+    rocblas_eorder order = rocblas_eorder_entire;
     T vlow = 0;
     T vup = 0;
     rocblas_int ilow = 0;
@@ -144,8 +144,8 @@ void stebz_initData(const rocblas_handle handle, const rocblas_int n, Td& dD, Td
 
 template <typename T, typename Td, typename Ud, typename Th, typename Uh>
 void stebz_getError(const rocblas_handle handle,
-                    const rocblas_eval_range range,
-                    const rocblas_eval_order order,
+                    const rocblas_erange range,
+                    const rocblas_eorder order,
                     const rocblas_int n,
                     const T vlow,
                     const T vup,
@@ -234,8 +234,8 @@ void stebz_getError(const rocblas_handle handle,
 
 template <typename T, typename Td, typename Ud, typename Th, typename Uh>
 void stebz_getPerfData(const rocblas_handle handle,
-                       const rocblas_eval_range range,
-                       const rocblas_eval_order order,
+                       const rocblas_erange range,
+                       const rocblas_eorder order,
                        const rocblas_int n,
                        const T vlow,
                        const T vup,
@@ -329,8 +329,8 @@ void testing_stebz(Arguments& argus)
     rocblas_int iup = argus.get<rocblas_int>("iup", rangeC == 'I' ? 1 : 0);
     T abstol = T(argus.get<double>("abstol"));
 
-    rocblas_eval_range range = char2rocblas_eval_range(rangeC);
-    rocblas_eval_order order = char2rocblas_eval_order(orderC);
+    rocblas_erange range = char2rocblas_erange(rangeC);
+    rocblas_eorder order = char2rocblas_eorder(orderC);
     rocblas_int hot_calls = argus.iters;
 
     // check non-supported values
@@ -349,9 +349,9 @@ void testing_stebz(Arguments& argus)
     size_t size_ISRes = (argus.unit_check || argus.norm_check) ? size_IS : 0;
 
     // check invalid sizes
-    bool invalid_size = (n < 0) || (range == rocblas_range_value && vlow >= vup)
-        || (range == rocblas_range_index && (ilow < 1 || iup < 0))
-        || (range == rocblas_range_index && (iup > n || (n > 0 && ilow > iup)));
+    bool invalid_size = (n < 0) || (range == rocblas_erange_value && vlow >= vup)
+        || (range == rocblas_erange_index && (ilow < 1 || iup < 0))
+        || (range == rocblas_erange_index && (iup > n || (n > 0 && ilow > iup)));
     if(invalid_size)
     {
         EXPECT_ROCBLAS_STATUS(
