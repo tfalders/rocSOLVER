@@ -349,13 +349,13 @@ try
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
 
-        ("ilow",
+        ("il",
          value<rocblas_int>(),
             "Lower index in ordered subset of eigenvalues.\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
 
-        ("iup",
+        ("iu",
          value<rocblas_int>(),
             "Upper index in ordered subset of eigenvalues.\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
@@ -363,20 +363,20 @@ try
 
         ("range",
          value<char>()->default_value('A'),
-            "A = all eigenvalues, V = in (vlow, vup], I = from the ilow-th to the iup-th.\n"
+            "A = all eigenvalues, V = in (vl, vu], I = from the il-th to the iu-th.\n"
             "                           For partial eigenvalue decompositions, it indicates the type of interval in which\n"
             "                           the eigenvalues will be found.\n"
             "                           ")
 
         ("vlow",
          value<double>(),
-            "Lower bound of half-open interval (vlow, vup].\n"
+            "Lower bound of half-open interval (vl, vu].\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
 
-        ("vup",
+        ("vu",
          value<double>(),
-            "Upper bound of half-open interval (vlow, vup].\n"
+            "Upper bound of half-open interval (vl, vu].\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
             "                           ")
 
