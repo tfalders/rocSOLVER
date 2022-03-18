@@ -54,7 +54,7 @@ __device__ void increasing_order(const rocblas_int nn, T* X, rocblas_int* Y)
 
 /** This device function computes Gershgorin circles for all
     diagonal elements of a tridiagonal matrix, and returns
-    the outter bounds**/
+    the outer bounds**/
 template <typename T>
 __device__ void gershgorin_bounds(const rocblas_int n, T* D, T* E, T* vlow, T* vup)
 {
@@ -161,7 +161,7 @@ ROCSOLVER_KERNEL void stebz_case1_kernel(const rocblas_erange range,
     }
 }
 
-/** This kernel splits the matrix in independent blocks and prepares things
+/** This kernel splits the matrix into independent blocks and prepares things
     for the computations in the iterative bisection **/
 template <typename T, typename U>
 ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
@@ -334,7 +334,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
             // re-order intervals
             increasing_order(2 * n, inter, ninter);
 
-            // adjust outter bounds
+            // adjust outer bounds
             vl = inter[0];
             vu = inter[2 * n - 1];
             tmp = std::max(std::abs(vl), std::abs(vu));
@@ -370,8 +370,8 @@ ROCSOLVER_KERNEL void __launch_bounds__(SPLIT_THDS)
         pivmin[bid] = pmin;
 
         // set upper and lower bounds vl and vu of the absolute interval (vl, vu] where
-        // the eigenavlues will be searched. vl and vu are set to zero when looking for
-        // all the eigenvalues in matrix,
+        // the eigenvalues will be searched. vl and vu are set to zero when looking for
+        // all the eigenvalues in the matrix.
         if(range == rocblas_erange_all)
         {
             bounds[0] = 0;
@@ -437,13 +437,13 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
     // in all split blocks are stored in inter and ninter
     T* inter = interA + bid * (4 * n);
     rocblas_int* ninter = ninterA + bid * (4 * n);
-    // tmpnev stores the numner of eigenvalue found in each split block
+    // tmpnev stores the number of eigenvalues found in each split block
     rocblas_int* tmpnev = tmpnevA + bid * n;
 
     // Shared arrays (sh_name):
     // after each iteration, a thread that found a new interval will activate this flag
     __shared__ int sh_newi[IBISEC_THDS];
-    // threads will share the new found interval bounds and its numbers of
+    // threads will share the newfound interval bounds and numbers of
     // eigenvalues in these arryas:
     __shared__ T sh_inter[4 * IBISEC_THDS];
     __shared__ int sh_ninter[4 * IBISEC_THDS];
@@ -459,7 +459,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
     rocblas_int lc_bin, lc_bout, lc_bdim;
     // tolerance to decide when an interval converged
     T lc_tol;
-    // lc_ite counts the number of iterations in the bissection
+    // lc_ite counts the number of iterations in the bisection
     // and lc_maxite is the maximum number of iterations allowed
     int lc_ite, lc_maxite;
     // lc_nofi is the number of intervals in active block at current iteration
@@ -470,7 +470,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
     rocblas_int offset, offin, offout, nl, nu, ntmp;
     int iid;
 
-    /*********** loop over idependent split blocks ***********/
+    /*********** loop over independent split blocks ***********/
     for(int b = sbid; b < nofb; b += IBISEC_BLKS)
     {
         // find dimension and indices of current split block
@@ -575,7 +575,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(IBISEC_THDS)
             {
                 // start next iteration.
                 // (the first 2n elements of inter/ninter are used as inputs in even iterations,
-                // the last 2n elements of these arrays are used as inputs in odd itreations)
+                // the last 2n elements of these arrays are used as inputs in odd iterations)
                 lc_ite++;
                 offin = (lc_ite % 2) ? 2 * n + offset : offset;
                 offout = (lc_ite % 2) ? offset : 2 * n + offset;
@@ -748,7 +748,7 @@ ROCSOLVER_KERNEL void stebz_synthesis_kernel(const rocblas_erange range,
 
     if(bid < batch_count)
     {
-        // select bacth instance
+        // select batch instance
         T* D = load_ptr_batch<T>(DA, bid, shiftD, strideD);
         T* W = WA + bid * strideW;
         rocblas_int* IB = IBA + bid * strideIB;
@@ -757,7 +757,7 @@ ROCSOLVER_KERNEL void stebz_synthesis_kernel(const rocblas_erange range,
         T* Esqr = EsqrA + bid * (n - 1);
         T pmin = pivmin[bid];
         T* bounds = boundsA + bid * 2;
-        // tmpnev stores the numner of eigenvalue found in each split block
+        // tmpnev stores the number of eigenvalues found in each split block
         rocblas_int* tmpnev = tmpnevA + bid * n;
 
         rocblas_int bin;
@@ -966,7 +966,7 @@ rocblas_status rocsolver_stebz_template(rocblas_handle handle,
     T eps = get_epsilon<T>();
     // smallest safe real (i.e. 1/sfmin does not overflow)
     T sfmin = get_safemin<T>();
-    // absolute tolerance for evaluating when and eigenvalue interval is small
+    // absolute tolerance for evaluating when an eigenvalue interval is small
     // enough to consider it as converged. By default, if abstol = 0, set this to
     // the best accuracy value
     T atol = (abstol == 0) ? 2 * sfmin : abstol;
@@ -983,7 +983,7 @@ rocblas_status rocsolver_stebz_template(rocblas_handle handle,
     // Each thread-block is working with as many split-off blocks as needed to cover
     // the entire matrix.
 
-    /** (TODO: in the future, we can evaluate if transfering nsplit -the number of
+    /** (TODO: in the future, we can evaluate if transferring nsplit -the number of
         split-off blocks- into the host, to launch exactly that amount of thread-blocks,
         could give better performance) **/
 
