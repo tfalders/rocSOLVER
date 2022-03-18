@@ -209,22 +209,22 @@ void stebz_getError(const rocblas_handle handle,
 
     // check number of split blocks
     rocblas_int ns = hnsplit[0][0];
-    *max_err += ns - hnsplitRes[0][0];
+    *max_err += std::abs(ns - hnsplitRes[0][0]);
 
     // check split blocks limits
     for(int k = 0; k < ns; ++k)
-        *max_err += hIsplit[0][k] - hIsplitRes[0][k];
+        *max_err += std::abs(hIsplit[0][k] - hIsplitRes[0][k]);
 
     // if finding eigenvalues succeded, check values
     if(hinfo[0][0] == 0)
     {
         // check number of computed eigenvalues
         rocblas_int nn = hnev[0][0];
-        *max_err += nn - hnevRes[0][0];
+        *max_err += std::abs(nn - hnevRes[0][0]);
 
         // check block indices
         for(int k = 0; k < nn; ++k)
-            *max_err += hIblock[0][k] - hIblockRes[0][k];
+            *max_err += std::abs(hIblock[0][k] - hIblockRes[0][k]);
 
         // error is ||hW - hWRes|| / ||hW||
         // using frobenius norm
