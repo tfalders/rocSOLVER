@@ -368,7 +368,7 @@ try
             "                           the eigenvalues will be found.\n"
             "                           ")
 
-        ("vlow",
+        ("vl",
          value<double>(),
             "Lower bound of half-open interval (vl, vu].\n"
             "                           Used in partial eigenvalue decomposition functions.\n"
