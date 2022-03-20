@@ -214,23 +214,6 @@ void stein_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hIfailRes.transfer_from(dIfail));
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
-    // Prepare matrix A (upper triangular) for implicit tests
-    rocblas_int lda = n;
-    size_t size_A = lda * n;
-    host_strided_batch_vector<T> hA(size_A, 1, size_A, 1);
-    for(rocblas_int i = 0; i < n; i++)
-    {
-        for(rocblas_int j = i; j < n; j++)
-        {
-            if(i == j)
-                hA[0][i + j * lda] = hD[0][i];
-            else if(i + 1 == j)
-                hA[0][i + j * lda] = hE[0][i];
-            else
-                hA[0][i + j * lda] = 0;
-        }
-    }
-
     // CPU lapack
     cblas_stein<T>(n, hD[0], hE[0], hNev[0], hW[0], hIblock[0], hIsplit[0], hZ[0], ldz, work.data(),
                    iwork.data(), hIfail[0], hInfo[0]);
@@ -256,18 +239,28 @@ void stein_getError(const rocblas_handle handle,
 
         // need to implicitly test eigenvectors due to non-uniqueness of eigenvectors under scaling
 
-        // multiply A with each of the nev eigenvectors and divide by corresponding
-        // eigenvalues
-        T alpha;
-        T beta = 0;
+        // for each of the nev eigenvalues w_j, verify that the associated eigenvector is in the 
+        // null space of (A - w_i * I)
+        T alpha, t1, t2;
         for(int j = 0; j < hNev[0][0]; j++)
         {
-            alpha = T(1) / hW[0][j];
-            cblas_symv_hemv(rocblas_fill_upper, n, alpha, hA[0], lda, hZRes[0] + j * ldz, 1, beta,
-                            hZ[0] + j * ldz, 1);
+            for(int i = 0; i < n; i++)
+            {
+                alpha = hW[0][j] - hD[0][i];
+                hZ[0][i+j*ldz] = hZRes[0][i+j*ldz] * alpha;
+            }
+            t1 = hZRes[0][j*ldz];
+            hZRes[0][j*ldz] = hE[0][0] * hZRes[0][1+j*ldz];
+            for(int i = 1; i < n-1; i++)
+            {
+                t2 = hZRes[0][i+j*ldz];
+                hZRes[0][i+j*ldz] = hE[0][i-1] * t1 + hE[0][i] * hZRes[0][(i+1)+j*ldz];
+                t1 = t2;
+            }
+            hZRes[0][(n-1)+j*ldz] = hE[0][n-2] * t1;
         }
 
-        // error is ||hZ - hZRes|| / ||hZ||
+        // error is then ||hZ - hZRes|| / ||hZ||
         // using frobenius norm
         err = norm_error('F', n, hNev[0][0], ldz, hZ[0], hZRes[0]);
         *max_err = err > *max_err ? err : *max_err;
