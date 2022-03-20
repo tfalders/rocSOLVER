@@ -107,6 +107,7 @@ void testing_stein_bad_arg()
 template <bool CPU, bool GPU, typename T, typename Sd, typename Ud, typename Sh, typename Uh>
 void stein_initData(const rocblas_handle handle,
                     const rocblas_int n,
+                    const rocblas_int nev,
                     Sd& dD,
                     Sd& dE,
                     Ud& dNev,
@@ -137,13 +138,17 @@ void stein_initData(const rocblas_handle handle,
         {
             hD[0][i] += 10;
             hE[0][i] -= 5;
+            if(i == n / 4 || i == n / 2 || i == n - 1)
+                hE[0][i] = 0;
+            if(i == n / 7 || i == n / 5 || i == n / 3)
+                hD[0][i] *= -1;
         }
 
         // compute a subset of the eigenvalues
-        S vl = 0.0;
-        S vu = 10.0;
+        S il = n - nev + 1;
+        S iu = n;
         S abstol = 2 * get_safemin<S>();
-        cblas_stebz<S>(rocblas_erange_value, rocblas_eorder_blocks, n, vl, vu, 0, 0, abstol, hD[0],
+        cblas_stebz<S>(rocblas_erange_index, rocblas_eorder_blocks, n, 0, 0, il, iu, abstol, hD[0],
                        hE[0], hNev[0], &nsplit, hW[0], hIblock[0], hIsplit[0], work.data(),
                        iwork.data(), &info);
     }
@@ -163,6 +168,7 @@ void stein_initData(const rocblas_handle handle,
 template <typename T, typename Sd, typename Td, typename Ud, typename Sh, typename Th, typename Uh>
 void stein_getError(const rocblas_handle handle,
                     const rocblas_int n,
+                    const rocblas_int nev,
                     Sd& dD,
                     Sd& dE,
                     Ud& dNev,
@@ -196,7 +202,7 @@ void stein_getError(const rocblas_handle handle,
     std::vector<rocblas_int> iwork(liwork);
 
     // input data initialization
-    stein_initData<true, true, T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
+    stein_initData<true, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
                                   hIblock, hIsplit);
 
     // execute computations
@@ -282,6 +288,7 @@ void stein_getError(const rocblas_handle handle,
 template <typename T, typename Sd, typename Td, typename Ud, typename Sh, typename Th, typename Uh>
 void stein_getPerfData(const rocblas_handle handle,
                        const rocblas_int n,
+                       const rocblas_int nev,
                        Sd& dD,
                        Sd& dE,
                        Ud& dNev,
@@ -317,7 +324,7 @@ void stein_getPerfData(const rocblas_handle handle,
 
     if(!perf)
     {
-        stein_initData<true, false, T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
+        stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
                                        hW, hIblock, hIsplit);
 
         // cpu-lapack performance (only if not in perf mode)
@@ -327,13 +334,13 @@ void stein_getPerfData(const rocblas_handle handle,
         *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
     }
 
-    stein_initData<true, false, T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
+    stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
                                    hIblock, hIsplit);
 
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
-        stein_initData<false, true, T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
+        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
                                        hW, hIblock, hIsplit);
 
         CHECK_ROCBLAS_ERROR(rocsolver_stein(handle, n, dD.data(), dE.data(), dNev.data(), dW.data(),
@@ -354,7 +361,7 @@ void stein_getPerfData(const rocblas_handle handle,
 
     for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
-        stein_initData<false, true, T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
+        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
                                        hW, hIblock, hIsplit);
 
         start = get_time_us_sync(stream);
@@ -373,6 +380,7 @@ void testing_stein(Arguments& argus)
     // get arguments
     rocblas_local_handle handle;
     rocblas_int n = argus.get<rocblas_int>("n");
+    rocblas_int nev = argus.get<rocblas_int>("nev", n < 5 ? n : 5 );
     rocblas_int ldz = argus.get<rocblas_int>("ldz", n);
 
     rocblas_int hot_calls = argus.iters;
@@ -485,20 +493,20 @@ void testing_stein(Arguments& argus)
 
     // check computations
     if(argus.unit_check || argus.norm_check)
-        stein_getError<T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo, hD,
+        stein_getError<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo, hD,
                           hE, hNev, hW, hIblock, hIsplit, hZ, hZRes, hIfail, hIfailRes, hInfo,
                           hInfoRes, &max_error);
 
     // collect performance data
     if(argus.timing)
-        stein_getPerfData<T>(handle, n, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo,
+        stein_getPerfData<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo,
                              hD, hE, hNev, hW, hIblock, hIsplit, hZ, hIfail, hInfo, &gpu_time_used,
                              &cpu_time_used, hot_calls, argus.profile, argus.perf);
 
     // validate results for rocsolver-test
     // using 2 * n * machine_precision as tolerance
     if(argus.unit_check)
-        ROCSOLVER_TEST_CHECK(T, max_error, 2 * n);
+        ROCSOLVER_TEST_CHECK(T, max_error, 2*n);//2*n
 
     // output results for rocsolver-bench
     if(argus.timing)
@@ -506,8 +514,8 @@ void testing_stein(Arguments& argus)
         if(!argus.perf)
         {
             rocsolver_bench_header("Arguments:");
-            rocsolver_bench_output("n", "ldz");
-            rocsolver_bench_output(n, ldz);
+            rocsolver_bench_output("n", "nev", "ldz");
+            rocsolver_bench_output(n, nev, ldz);
 
             rocsolver_bench_header("Results:");
             if(argus.norm_check)
