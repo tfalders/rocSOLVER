@@ -202,8 +202,8 @@ void stein_getError(const rocblas_handle handle,
     std::vector<rocblas_int> iwork(liwork);
 
     // input data initialization
-    stein_initData<true, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
-                                  hIblock, hIsplit);
+    stein_initData<true, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
+                                  hW, hIblock, hIsplit);
 
     // execute computations
     // GPU lapack
@@ -239,7 +239,7 @@ void stein_getError(const rocblas_handle handle,
 
         // need to implicitly test eigenvectors due to non-uniqueness of eigenvectors under scaling
 
-        // for each of the nev eigenvalues w_j, verify that the associated eigenvector is in the 
+        // for each of the nev eigenvalues w_j, verify that the associated eigenvector is in the
         // null space of (A - w_i * I)
         T alpha, t1, t2;
         for(int j = 0; j < hNev[0][0]; j++)
@@ -247,17 +247,17 @@ void stein_getError(const rocblas_handle handle,
             for(int i = 0; i < n; i++)
             {
                 alpha = hW[0][j] - hD[0][i];
-                hZ[0][i+j*ldz] = hZRes[0][i+j*ldz] * alpha;
+                hZ[0][i + j * ldz] = hZRes[0][i + j * ldz] * alpha;
             }
-            t1 = hZRes[0][j*ldz];
-            hZRes[0][j*ldz] = hE[0][0] * hZRes[0][1+j*ldz];
-            for(int i = 1; i < n-1; i++)
+            t1 = hZRes[0][j * ldz];
+            hZRes[0][j * ldz] = hE[0][0] * hZRes[0][1 + j * ldz];
+            for(int i = 1; i < n - 1; i++)
             {
-                t2 = hZRes[0][i+j*ldz];
-                hZRes[0][i+j*ldz] = hE[0][i-1] * t1 + hE[0][i] * hZRes[0][(i+1)+j*ldz];
+                t2 = hZRes[0][i + j * ldz];
+                hZRes[0][i + j * ldz] = hE[0][i - 1] * t1 + hE[0][i] * hZRes[0][(i + 1) + j * ldz];
                 t1 = t2;
             }
-            hZRes[0][(n-1)+j*ldz] = hE[0][n-2] * t1;
+            hZRes[0][(n - 1) + j * ldz] = hE[0][n - 2] * t1;
         }
 
         // error is then ||hZ - hZRes|| / ||hZ||
@@ -317,8 +317,8 @@ void stein_getPerfData(const rocblas_handle handle,
 
     if(!perf)
     {
-        stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
-                                       hW, hIblock, hIsplit);
+        stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE,
+                                       hNev, hW, hIblock, hIsplit);
 
         // cpu-lapack performance (only if not in perf mode)
         *cpu_time_used = get_time_us_no_sync();
@@ -327,14 +327,14 @@ void stein_getPerfData(const rocblas_handle handle,
         *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
     }
 
-    stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev, hW,
-                                   hIblock, hIsplit);
+    stein_initData<true, false, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
+                                   hW, hIblock, hIsplit);
 
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
-        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
-                                       hW, hIblock, hIsplit);
+        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE,
+                                       hNev, hW, hIblock, hIsplit);
 
         CHECK_ROCBLAS_ERROR(rocsolver_stein(handle, n, dD.data(), dE.data(), dNev.data(), dW.data(),
                                             dIblock.data(), dIsplit.data(), dZ.data(), ldz,
@@ -354,8 +354,8 @@ void stein_getPerfData(const rocblas_handle handle,
 
     for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
-        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE, hNev,
-                                       hW, hIblock, hIsplit);
+        stein_initData<false, true, T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, hD, hE,
+                                       hNev, hW, hIblock, hIsplit);
 
         start = get_time_us_sync(stream);
         rocsolver_stein(handle, n, dD.data(), dE.data(), dNev.data(), dW.data(), dIblock.data(),
@@ -373,7 +373,7 @@ void testing_stein(Arguments& argus)
     // get arguments
     rocblas_local_handle handle;
     rocblas_int n = argus.get<rocblas_int>("n");
-    rocblas_int nev = argus.get<rocblas_int>("nev", n < 5 ? n : 5 );
+    rocblas_int nev = argus.get<rocblas_int>("nev", n < 5 ? n : 5);
     rocblas_int ldz = argus.get<rocblas_int>("ldz", n);
 
     rocblas_int hot_calls = argus.iters;
@@ -486,20 +486,20 @@ void testing_stein(Arguments& argus)
 
     // check computations
     if(argus.unit_check || argus.norm_check)
-        stein_getError<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo, hD,
-                          hE, hNev, hW, hIblock, hIsplit, hZ, hZRes, hIfail, hIfailRes, hInfo,
-                          hInfoRes, &max_error);
+        stein_getError<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail,
+                          dInfo, hD, hE, hNev, hW, hIblock, hIsplit, hZ, hZRes, hIfail, hIfailRes,
+                          hInfo, hInfoRes, &max_error);
 
     // collect performance data
     if(argus.timing)
-        stein_getPerfData<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail, dInfo,
-                             hD, hE, hNev, hW, hIblock, hIsplit, hZ, hIfail, hInfo, &gpu_time_used,
-                             &cpu_time_used, hot_calls, argus.profile, argus.perf);
+        stein_getPerfData<T>(handle, n, nev, dD, dE, dNev, dW, dIblock, dIsplit, dZ, ldz, dIfail,
+                             dInfo, hD, hE, hNev, hW, hIblock, hIsplit, hZ, hIfail, hInfo,
+                             &gpu_time_used, &cpu_time_used, hot_calls, argus.profile, argus.perf);
 
     // validate results for rocsolver-test
     // using 2 * n * machine_precision as tolerance
     if(argus.unit_check)
-        ROCSOLVER_TEST_CHECK(T, max_error, 2*n);//2*n
+        ROCSOLVER_TEST_CHECK(T, max_error, 2 * n);
 
     // output results for rocsolver-bench
     if(argus.timing)

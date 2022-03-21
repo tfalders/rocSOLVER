@@ -15,8 +15,8 @@ typedef std::tuple<vector<int>, int> stein_tuple;
 
 // each size_range vector is a {N, ldz}
 
-// each vec_range is a {nev} 
-// Indicates the number of vectors to compute 
+// each vec_range is a {nev}
+// Indicates the number of vectors to compute
 // (vectors are always associated with the last nev eigenvalues)
 
 // case when N == 0 and nev == 5 will also execute the bad arguments test
@@ -39,12 +39,10 @@ const vector<int> vec_range = {5, 10, 15};
 const vector<vector<int>> large_matrix_size_range = {{192, 192}, {256, 270}, {300, 300}};
 const vector<int> large_vec_range = {25, 40, 65};
 
-
-
 Arguments stein_setup_arguments(stein_tuple tup)
 {
     Arguments arg;
-    
+
     vector<int> size = std::get<0>(tup);
     rocblas_int nev = std::get<1>(tup);
 
@@ -98,8 +96,10 @@ TEST_P(STEIN, __double_complex)
     run_tests<rocblas_double_complex>();
 }
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack, STEIN, 
-                        Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_vec_range)));
+INSTANTIATE_TEST_SUITE_P(daily_lapack,
+                         STEIN,
+                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_vec_range)));
 
-INSTANTIATE_TEST_SUITE_P(checkin_lapack, STEIN, 
-                        Combine(ValuesIn(matrix_size_range), ValuesIn(vec_range)));
+INSTANTIATE_TEST_SUITE_P(checkin_lapack,
+                         STEIN,
+                         Combine(ValuesIn(matrix_size_range), ValuesIn(vec_range)));
