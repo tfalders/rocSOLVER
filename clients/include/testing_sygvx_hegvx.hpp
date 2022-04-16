@@ -226,17 +226,20 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                           const bool test,
                           const bool singular)
 {
+//int mib=atoi(getenv("B"));
     if(CPU)
     {
         rocblas_int info;
         rocblas_int ldu = n;
         host_strided_batch_vector<T> U(n * n, 1, n * n, bc);
         rocblas_init<T>(hA, true);
-        rocblas_init<T>(U, false);
+        rocblas_init<T>(U, true);
 
         for(rocblas_int b = 0; b < bc; ++b)
         {
-            // for testing purposes, construct A and B such that the eigenvalue range of the generalized eigenproblem is known
+            // for testing purposes, we start with a reduced matrix M for the standard equivalent problem
+            // with spectrum in a desired range (390, 420). Then we construct the generalized pair
+            // (A, B) from there.
             for(rocblas_int i = 0; i < n; i++)
             {
                 // scale matrices and set hA = M (symmetric/hermitian), hB = U (upper triangular)
@@ -245,12 +248,11 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                     if(i == j)
                     {
                         hA[b][i + j * lda] = std::real(hA[b][i + j * lda]) + 400;
-                        hB[b][i + j * ldb] = U[b][i + j * ldu] = 1;
+                        U[b][i + j * ldu] = std::real(U[b][i + j * ldu]) / 100 + 1;
+                        hB[b][i + j * ldb] = U[b][i + j * ldu];
                     }
                     else
                     {
-                        // hA[b][i + j * lda] -= 5;
-                        // hA[b][j + i * lda] = sconj(hA[b][i + j * lda]);
                         if(j == i + 1)
                         {
                             hA[b][i + j * lda] -= 5;
@@ -259,12 +261,25 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                         else
                             hA[b][j + i * lda] = hA[b][i + j * lda] = 0;
 
-                        hB[b][i + j * ldb] = U[b][i + j * ldu] /= 20;
+                        U[b][i + j * ldu] = (U[b][i + j * ldu] - 5) / 100;
+                        hB[b][i + j * ldb] = U[b][i + j * ldu];
                         hB[b][j + i * ldb] = 0;
+                        U[b][j + i * ldu] = 0;
                     }
                 }
             }
+//if(b==mib)
+//{
+//print_host_matrix(std::cout, "M", n, n, hA[mib], lda);
+//print_host_matrix(std::cout, "U", n, n, U[mib], ldu);
+//}
 
+            // form B = U' U
+            T one = T(1);
+            cblas_trmm<T>(rocblas_side_left, rocblas_fill_upper,
+                          rocblas_operation_conjugate_transpose, rocblas_diagonal_non_unit, n, n,
+                          one, U[b], ldu, hB[b], ldb);
+            
             if(singular && (b == bc / 4 || b == bc / 2 || b == bc - 1))
             {
                 // make some matrices B not positive definite
@@ -273,24 +288,19 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                 // in those matrices in the batch that are non positive definite
                 rocblas_int i = n / 4 + b;
                 i -= (i / n) * n;
-                hB[b][i + i * ldb] = U[b][i + i * ldu] *= -1;
+                hB[b][i + i * ldb] = 0;
                 i = n / 2 + b;
                 i -= (i / n) * n;
-                hB[b][i + i * ldb] = U[b][i + i * ldu] *= -1;
+                hB[b][i + i * ldb] = 0;
                 i = n - 1 + b;
                 i -= (i / n) * n;
-                hB[b][i + i * ldb] = U[b][i + i * ldu] *= -1;
+                hB[b][i + i * ldb] = 0;
             }
 
-            // form B = U' U
-            T one = T(1);
-            cblas_trmm<T>(rocblas_side_left, rocblas_fill_upper,
-                          rocblas_operation_conjugate_transpose, rocblas_diagonal_non_unit, n, n,
-                          one, U[b], ldu, hB[b], ldb);
 
-            // form A = U' M U or A = inv(U) M inv(U')
             if(itype == rocblas_eform_ax)
             {
+                // form A = U' M U
                 cblas_trmm<T>(rocblas_side_left, rocblas_fill_upper,
                               rocblas_operation_conjugate_transpose, rocblas_diagonal_non_unit, n,
                               n, one, U[b], ldu, hA[b], lda);
@@ -299,6 +309,7 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
             }
             else
             {
+                // form A = inv(U) M inv(U')
                 cblas_trtri<T>(rocblas_fill_upper, rocblas_diagonal_non_unit, n, U[b], ldu, &info);
                 cblas_trmm<T>(rocblas_side_left, rocblas_fill_upper, rocblas_operation_none,
                               rocblas_diagonal_non_unit, n, n, one, U[b], ldu, hA[b], lda);
@@ -306,7 +317,11 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                               rocblas_operation_conjugate_transpose, rocblas_diagonal_non_unit, n,
                               n, one, U[b], ldu, hA[b], lda);
             }
-
+//if(mib==b)
+//{
+//print_host_matrix(std::cout, "A", n, n, hA[mib], lda);
+//print_host_matrix(std::cout, "B", n, n, hB[mib], ldb);
+//}
             // store A and B for testing purposes
             if(test && evect != rocblas_evect_none)
             {
@@ -381,6 +396,7 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
                           double* max_err,
                           const bool singular)
 {
+//int mib=atoi(getenv("B"));
     constexpr bool COMPLEX = is_complex<T>;
 
     int lwork = (COMPLEX ? 2 * n : 8 * n);
@@ -428,16 +444,17 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
     // down to essentially run the algorithm again and until convergence is achieved.
     // We do test with indefinite matrices B).
 
-    if(erange == rocblas_erange_value)
-    {
-        print_host_matrix(std::cout, "info", 1, bc, hInfo.data(), 1);
-        print_host_matrix(std::cout, "nev", 1, bc, hNev.data(), 1);
-    }
-    if(erange == rocblas_erange_all)
-    {
-        for(rocblas_int b = 0; b < bc; ++b)
-            print_host_matrix(std::cout, "W", 1, n, hW[b], 1);
-    }
+//    if(erange == rocblas_erange_value)
+//    {
+//print_host_matrix(std::cout, "info", 1, bc, hInfoRes.data(), 1);
+//print_host_matrix(std::cout, "nev", 1, bc, hNevRes.data(), 1);
+//    }
+//    if(erange == rocblas_erange_all)
+//    {
+//        for(rocblas_int b = 0; b < bc; ++b)
+//print_host_matrix(std::cout, "W", 1, n, hWRes[mib], 1);
+//print_host_matrix(std::cout, "Z", n, hNev[mib][0], hZRes[mib], ldz);
+//    }*/
 
     // check info for non-convergence and/or positive-definiteness
     *max_err = 0;
@@ -446,7 +463,6 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
             *max_err += 1;
 
     // Check number of returned eigenvalues
-    *max_err = 0;
     for(rocblas_int b = 0; b < bc; ++b)
         if(hNev[b][0] != hNevRes[b][0])
             *max_err += 1;
@@ -461,7 +477,7 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
 
             // error is ||hW - hWRes|| / ||hW||
             // using frobenius norm
-            if(hInfoRes[b][0] == 0)
+            if(hInfo[b][0] == 0)
             {
                 err = norm_error('F', 1, hNev[b][0], 1, hW[b], hWRes[b]);
                 *max_err = err > *max_err ? err : *max_err;
@@ -471,7 +487,7 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
         {
             // both eigenvalues and eigenvectors needed; need to implicitly test
             // eigenvectors due to non-uniqueness of eigenvectors under scaling
-            if(hInfoRes[b][0] == 0)
+            if(hInfo[b][0] == 0)
             {
                 // check ifail
                 err = 0;
@@ -498,13 +514,13 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
                     for(int j = 0; j < hNev[b][0]; j++)
                     {
                         alpha = T(1) / hWRes[b][j];
-                        cblas_symv_hemv(uplo, n, alpha, A[b], lda, hZRes[b] + j * lda, 1, beta,
+                        cblas_symv_hemv(uplo, n, alpha, A[b], lda, hZRes[b] + j * ldz, 1, beta,
                                         hA[b] + j * lda, 1);
                     }
 
                     // move B*x into hZRes
-                    for(rocblas_int i = 0; i < hNev[b][0]; i++)
-                        for(rocblas_int j = 0; j < n; j++)
+                    for(rocblas_int i = 0; i < n; i++)
+                        for(rocblas_int j = 0; j < hNev[b][0]; j++)
                             hZRes[b][i + j * ldz] = hB[b][i + j * ldb];
                 }
                 else
@@ -522,10 +538,15 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
 
                 // error is ||hA - hZRes|| / ||hA||
                 // using frobenius norm
+//if(b==mib)
+//{
+//print_host_matrix(std::cout, "gold", n, hNev[mib][0], hA[mib], lda);
+//print_host_matrix(std::cout, "computed", n, hNev[mib][0], hZRes[mib], ldz);
+//}
                 err = norm_error('F', n, hNev[b][0], lda, hA[b], hZRes[b], ldz);
                 *max_err = err > *max_err ? err : *max_err;
             }
-            else if(hInfoRes[b][0] <= n)
+            else if(hInfo[b][0] <= n)
             {
                 // check ifail
                 err = 0;
@@ -667,7 +688,7 @@ void testing_sygvx_hegvx(Arguments& argus)
     rocblas_local_handle handle;
     char itypeC = argus.get<char>("itype");
     char evectC = argus.get<char>("evect");
-    char erangeC = argus.get<char>("erange");
+    char erangeC = argus.get<char>("range");
     char uploC = argus.get<char>("uplo");
     rocblas_int n = argus.get<rocblas_int>("n");
     rocblas_int lda = argus.get<rocblas_int>("lda", n);

@@ -267,9 +267,12 @@ rocblas_status rocsolver_sygvx_hegvx_template(rocblas_handle handle,
     T one = 1;
 
     // perform Cholesky factorization of B
+//int mib = atoi(getenv("B"));
+//print_device_matrix(std::cout,"B antes de chol",n,n,B,ldb,strideB,mib);
     rocsolver_potrf_template<BATCHED, T, S>(handle, uplo, n, B, shiftB, ldb, strideB, info,
                                             batch_count, scalars, work1, work2, work3, work4,
                                             (T*)work7_workArr, iinfo, optim_mem);
+//print_device_matrix(std::cout,"U despues de chol",n,n,B,ldb,strideB,mib);
 
     /** (TODO: Strictly speaking, computations should stop here if B is not positive definite.
         A should not be modified in this case as no eigenvalues or eigenvectors can be computed.
@@ -280,6 +283,7 @@ rocblas_status rocsolver_sygvx_hegvx_template(rocblas_handle handle,
     rocsolver_sygst_hegst_template<BATCHED, STRIDED, T, S>(
         handle, itype, uplo, n, A, shiftA, lda, strideA, B, shiftB, ldb, strideB, batch_count,
         scalars, work1, work2, work3, work4, optim_mem);
+//print_device_matrix(std::cout,"M despues de sygst",n,n,A,lda,strideA,mib);
 
     rocsolver_syevx_heevx_template<BATCHED, STRIDED, T>(
         handle, evect, erange, uplo, n, A, shiftA, lda, strideA, vl, vu, il, iu, abstol, nev, W,

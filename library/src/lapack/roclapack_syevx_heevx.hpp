@@ -48,7 +48,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(BS1) syevx_sort_eigs(const rocblas_int n
         {
             i = 0;
             S tmp1 = W[j];
-            for(jj = j + 1; j < nev; j++)
+            for(jj = j + 1; jj < nev; jj++)
             {
                 if(W[jj] < tmp1)
                 {
