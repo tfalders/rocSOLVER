@@ -226,7 +226,7 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                           const bool test,
                           const bool singular)
 {
-//int mib=atoi(getenv("B"));
+int mib=atoi(getenv("B"));
     if(CPU)
     {
         rocblas_int info;
@@ -238,7 +238,7 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
         for(rocblas_int b = 0; b < bc; ++b)
         {
             // for testing purposes, we start with a reduced matrix M for the standard equivalent problem
-            // with spectrum in a desired range (390, 420). Then we construct the generalized pair
+            // with spectrum in a desired range (90, 120). Then we construct the generalized pair
             // (A, B) from there.
             for(rocblas_int i = 0; i < n; i++)
             {
@@ -247,7 +247,7 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                 {
                     if(i == j)
                     {
-                        hA[b][i + j * lda] = std::real(hA[b][i + j * lda]) + 400;
+                        hA[b][i + j * lda] = std::real(hA[b][i + j * lda]) + 10;
                         U[b][i + j * ldu] = std::real(U[b][i + j * ldu]) / 100 + 1;
                         hB[b][i + j * ldb] = U[b][i + j * ldu];
                     }
@@ -267,11 +267,13 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                         U[b][j + i * ldu] = 0;
                     }
                 }
+                if(i == n / 4 || i == n / 2 || i == n - 1 || i == n / 7 || i == n / 5 || i == n / 3)
+                    hA[b][i + i * lda] *= -1; 
             }
 //if(b==mib)
 //{
-//print_host_matrix(std::cout, "M", n, n, hA[mib], lda);
-//print_host_matrix(std::cout, "U", n, n, U[mib], ldu);
+//print_host_matrix("M", n, n, hA[mib], lda);
+//print_host_matrix("U", n, n, U[mib], ldu);
 //}
 
             // form B = U' U
@@ -319,8 +321,8 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
             }
 //if(mib==b)
 //{
-//print_host_matrix(std::cout, "A", n, n, hA[mib], lda);
-//print_host_matrix(std::cout, "B", n, n, hB[mib], ldb);
+//print_host_matrix("A", n, n, hA[mib], lda);
+//print_host_matrix("B", n, n, hB[mib], ldb);
 //}
             // store A and B for testing purposes
             if(test && evect != rocblas_evect_none)
@@ -446,14 +448,17 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
 
 //    if(erange == rocblas_erange_value)
 //    {
-//print_host_matrix(std::cout, "info", 1, bc, hInfoRes.data(), 1);
-//print_host_matrix(std::cout, "nev", 1, bc, hNevRes.data(), 1);
+//print_host_matrix(std::cout, "infoCPU", 1, bc, hInfo.data(), 1);
+//print_host_matrix(std::cout, "nevCPU", 1, bc, hNev.data(), 1);
+//print_host_matrix(std::cout, "infoGPU", 1, bc, hInfoRes.data(), 1);
+//print_host_matrix(std::cout, "nevGPU", 1, bc, hNevRes.data(), 1);
 //    }
 //    if(erange == rocblas_erange_all)
 //    {
 //        for(rocblas_int b = 0; b < bc; ++b)
-//print_host_matrix(std::cout, "W", 1, n, hWRes[mib], 1);
-//print_host_matrix(std::cout, "Z", n, hNev[mib][0], hZRes[mib], ldz);
+//print_host_matrix(std::cout, "WCPU", 1, n, hW[mib], 1);
+//print_host_matrix(std::cout, "WGPU", 1, n, hWRes[mib], 1);
+//print_host_matrix("Z", n, hNev[mib][0], hZRes[mib], ldz);
 //    }*/
 
     // check info for non-convergence and/or positive-definiteness
@@ -538,11 +543,11 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
 
                 // error is ||hA - hZRes|| / ||hA||
                 // using frobenius norm
-//if(b==mib)
-//{
-//print_host_matrix(std::cout, "gold", n, hNev[mib][0], hA[mib], lda);
-//print_host_matrix(std::cout, "computed", n, hNev[mib][0], hZRes[mib], ldz);
-//}
+/*if(b==mib)
+{
+print_host_matrix("gold", n, hNev[mib][0], hA[mib], lda);
+print_host_matrix("computed", n, hNev[mib][0], hZRes[mib], ldz);
+}*/
                 err = norm_error('F', n, hNev[b][0], lda, hA[b], hZRes[b], ldz);
                 *max_err = err > *max_err ? err : *max_err;
             }
@@ -700,11 +705,11 @@ void testing_sygvx_hegvx(Arguments& argus)
     rocblas_stride stF = argus.get<rocblas_stride>("strideF", n);
     rocblas_stride stZ = argus.get<rocblas_stride>("strideZ", ldz * n);
 
-    S vl = argus.get<S>("vl", 0);
-    S vu = argus.get<S>("vu", erangeC == 'V' ? 1 : 0);
+    S vl = S(argus.get<double>("vl", 0));
+    S vu = S(argus.get<double>("vu", erangeC == 'V' ? 1 : 0));
     rocblas_int il = argus.get<rocblas_int>("il", erangeC == 'I' ? 1 : 0);
     rocblas_int iu = argus.get<rocblas_int>("iu", erangeC == 'I' ? 1 : 0);
-    S abstol = argus.get<S>("abstol", 0);
+    S abstol = S(argus.get<double>("abstol", 0));
 
     rocblas_eform itype = char2rocblas_eform(itypeC);
     rocblas_evect evect = char2rocblas_evect(evectC);

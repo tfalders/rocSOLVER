@@ -31,7 +31,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(BS1) syevx_sort_eigs(const rocblas_int n
 {
     // select batch instance
     rocblas_int bid = hipBlockIdx_y;
-    rocblas_int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    rocblas_int tid = hipThreadIdx_x;
 
     // local variables
     rocblas_int nev = nevA[bid];
@@ -42,42 +42,39 @@ ROCSOLVER_KERNEL void __launch_bounds__(BS1) syevx_sort_eigs(const rocblas_int n
     T* Z = load_ptr_batch<T>(ZZ, bid, shiftZ, strideZ);
     rocblas_int* ifail = ifailA + (bid * strideIfail);
 
-    if(tid < n)
+    for(j = 0; j < nev - 1; j++)
     {
-        for(j = 0; j < nev - 1; j++)
+        i = 0;
+        S tmp1 = W[j];
+        for(jj = j + 1; jj < nev; jj++)
         {
-            i = 0;
-            S tmp1 = W[j];
-            for(jj = j + 1; jj < nev; jj++)
+            if(W[jj] < tmp1)
             {
-                if(W[jj] < tmp1)
-                {
-                    i = jj;
-                    tmp1 = W[jj];
-                }
+                i = jj;
+                tmp1 = W[jj];
             }
-            __syncthreads();
-
-            if(i != 0)
-            {
-                if(tid == 0)
-                {
-                    W[i] = W[j];
-                    W[j] = tmp1;
-                }
-
-                swap(Z[tid + i * ldz], Z[tid + j * ldz]);
-
-                if(tid < info)
-                {
-                    if(ifail[tid] == i + 1)
-                        ifail[tid] = j + 1;
-                    else if(ifail[tid] == j + 1)
-                        ifail[tid] = i + 1;
-                }
-            }
-            __syncthreads();
         }
+
+        if(i != 0)
+        {
+            if(tid == 0)
+            {
+                W[i] = W[j];
+                W[j] = tmp1;
+            }
+            
+            for(int k = tid; k < n; k += hipBlockDim_x)
+                swap(Z[k + i * ldz], Z[k + j * ldz]);
+
+            if(tid < info)
+            {
+                if(ifail[tid] == i + 1)
+                    ifail[tid] = j + 1;
+                else if(ifail[tid] == j + 1)
+                    ifail[tid] = i + 1;
+            }
+        }
+        __syncthreads();
     }
 }
 
@@ -298,12 +295,15 @@ rocblas_status rocsolver_syevx_heevx_template(rocblas_handle handle,
                                 stride, isplit, stride, info, batch_count, (rocblas_int*)work1,
                                 (S*)work2, (S*)work3, (S*)work4, (S*)work5, (rocblas_int*)work6);
 
+//print_device_matrix(std::cout,"inside W",1,n,W,1);
+
     if(evect != rocblas_evect_none)
     {
         // compute eigenvectors
         rocsolver_stein_template<T>(handle, n, D, 0, stride, E, 0, stride, nev, W, 0, strideW,
                                     iblock, stride, isplit, stride, Z, shiftZ, ldz, strideZ, ifail,
                                     strideF, info, batch_count, (S*)work1, (rocblas_int*)work2);
+//print_device_matrix("inZ1",n,n,Z,ldz);
 
         // apply unitary matrix to eigenvectors
         rocblas_int h_nev = (erange == rocblas_erange_index ? iu - il + 1 : n);
@@ -311,13 +311,14 @@ rocblas_status rocsolver_syevx_heevx_template(rocblas_handle handle,
             handle, rocblas_side_left, uplo, rocblas_operation_none, n, h_nev, A, shiftA, lda,
             strideA, tau, stride, Z, shiftZ, ldz, strideZ, batch_count, scalars, (T*)work1,
             (T*)work2, (T*)work3, (T**)nsplit_workArr);
+//print_device_matrix("inZ2",n,n,Z,ldz);
 
         // sort eigenvalues and eigenvectors
-        rocblas_int blocks = (n - 1) / BS1 + 1;
-        dim3 grid(blocks, batch_count, 1);
+        dim3 grid(1, batch_count, 1);
         dim3 threads(BS1, 1, 1);
         ROCSOLVER_LAUNCH_KERNEL(syevx_sort_eigs<T>, grid, threads, 0, stream, n, nev, W, strideW, Z,
                                 shiftZ, ldz, strideZ, ifail, strideF, info);
+//print_device_matrix("inZ3",n,n,Z,ldz);
     }
 
     return rocblas_status_success;

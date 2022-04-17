@@ -26,24 +26,24 @@ const vector<vector<printable_char>> op_range
 // for checkin_lapack tests
 const vector<vector<int>> size_range = {
     // quick return
-    {0, 1, 1, 390, 420, 1, 1},
+    {0, 1, 1, 0, 10, 1, 1},
     // invalid
-    {-1, 1, 1, 390, 420, 1, 1},
-    {10, 5, 10, 390, 420, 1, 1},
-    {10, 10, 5, 390, 420, 1, 1},
+    {-1, 1, 1, 0, 10, 1, 1},
+    {10, 5, 10, 0, 10, 1, 1},
+    {10, 10, 5, 0, 10, 1, 1},
     // valid only when erange=A
-    {10, 10, 10, 420, 390, 10, 1},
+    {10, 10, 10, 10, 0, 10, 1},
     // normal (valid) samples
-    {1, 1, 1, 390, 420, 1, 1},
-    {12, 12, 15, 390, 405, 10, 12},
-    {20, 30, 30, 400, 410, 1, 20},
-    {35, 35, 35, 405, 420, 1, 15},
-    {50, 60, 50, 390, 420, 20, 30}};
+    {1, 1, 1, 0, 10, 1, 1},
+    {12, 12, 15, -30, 30, 10, 12},
+    {20, 30, 30, 0, 15, 1, 20},
+    {35, 35, 35, -10, 10, 1, 15},
+    {50, 60, 50, -15, 0, 20, 30}};
 
 // for daily_lapack tests
-const vector<vector<int>> large_size_range = {{192, 192, 192, 390, 420, 100, 170},
-                                              {256, 270, 256, 400, 410, 1, 256},
-                                              {300, 300, 330, 405, 420, 200, 300}};
+const vector<vector<int>> large_size_range = {{192, 192, 192, 0, 15, 100, 170},
+                                              {256, 270, 256, -10, 10, 1, 256},
+                                              {300, 300, 330, -15, 0, 200, 300}};
 
 template <typename T>
 Arguments syevx_heevx_setup_arguments(syevx_heevx_tuple tup)
@@ -58,8 +58,8 @@ Arguments syevx_heevx_setup_arguments(syevx_heevx_tuple tup)
     arg.set<rocblas_int>("n", size[0]);
     arg.set<rocblas_int>("lda", size[1]);
     arg.set<rocblas_int>("ldz", size[2]);
-    arg.set<S>("vl", size[3]);
-    arg.set<S>("vu", size[4]);
+    arg.set<double>("vl", size[3]);
+    arg.set<double>("vu", size[4]);
     arg.set<rocblas_int>("il", size[5]);
     arg.set<rocblas_int>("iu", size[6]);
 
@@ -67,7 +67,7 @@ Arguments syevx_heevx_setup_arguments(syevx_heevx_tuple tup)
     arg.set<char>("range", op[1]);
     arg.set<char>("uplo", op[2]);
 
-    arg.set<S>("abstol", 0);
+    arg.set<double>("abstol", 0);
 
     // only testing standard use case/defaults for strides
 

@@ -28,23 +28,23 @@ const vector<vector<printable_char>> type_range
 // for checkin_lapack tests
 const vector<vector<int>> matrix_size_range = {
     // quick return
-    {0, 1, 1, 1, 390, 420, 1, 1, 0},
+    {0, 1, 1, 1, 0, 10, 1, 1, 0},
     // invalid
-    {-1, 1, 1, 1, 390, 420, 1, 1, 0},
-    {20, 5, 5, 20, 390, 420, 1, 1, 0},
-    {20, 20, 20, 5, 390, 420, 1, 1, 0},
+    {-1, 1, 1, 1, 0, 10, 1, 1, 0},
+    {20, 5, 5, 20, 0, 10, 1, 1, 0},
+    {20, 20, 20, 5, 0, 10, 1, 1, 0},
     // valid only when erange=A
-    {20, 20, 20, 20, 420, 390, 10, 1, 0},
+    {20, 20, 20, 20, 10, 0, 10, 1, 0},
     // normal (valid) samples
-    {20, 30, 20, 20, 390, 405, 1, 10, 1},
-    {35, 35, 35, 35, 400, 410, 1, 35, 0},
-    {50, 50, 60, 70, 405, 420, 25, 50, 1}};
+    {20, 30, 20, 20, 0, 15, 1, 10, 1},
+    {35, 35, 35, 35, -10, 10, 1, 35, 0},
+    {50, 50, 60, 70, -15, 0, 25, 50, 1}};
 
 // for daily_lapack tests
 const vector<vector<int>> large_matrix_size_range = {
-    {192, 192, 192, 192, 390, 405, 100, 150, 0},
-    {256, 270, 256, 260, 400, 410, 1, 100, 0},
-    {300, 300, 310, 320, 405, 420, 200, 300, 0},
+    {192, 192, 192, 192, 0, 15, 100, 150, 0},
+    {256, 270, 256, 260, -10, 10, 1, 100, 0},
+    {300, 300, 310, 320, -15, 0, 200, 300, 0},
 };
 
 template <typename T>
@@ -61,8 +61,8 @@ Arguments sygvx_setup_arguments(sygvx_tuple tup)
     arg.set<rocblas_int>("lda", matrix_size[1]);
     arg.set<rocblas_int>("ldb", matrix_size[2]);
     arg.set<rocblas_int>("ldz", matrix_size[3]);
-    arg.set<S>("vl", matrix_size[4]);
-    arg.set<S>("vu", matrix_size[5]);
+    arg.set<double>("vl", matrix_size[4]);
+    arg.set<double>("vu", matrix_size[5]);
     arg.set<rocblas_int>("il", matrix_size[6]);
     arg.set<rocblas_int>("iu", matrix_size[7]);
 
@@ -71,7 +71,7 @@ Arguments sygvx_setup_arguments(sygvx_tuple tup)
     arg.set<char>("range", type[2]);
     arg.set<char>("uplo", type[3]);
 
-    arg.set<S>("abstol", 0);
+    arg.set<double>("abstol", 0);
 
     // only testing standard use case/defaults for strides
 

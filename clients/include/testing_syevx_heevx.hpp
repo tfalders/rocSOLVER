@@ -193,14 +193,27 @@ void syevx_heevx_initData(const rocblas_handle handle,
         {
             for(rocblas_int i = 0; i < n; i++)
             {
-                for(rocblas_int j = 0; j < n; j++)
+                for(rocblas_int j = i; j < n; j++)
                 {
                     if(i == j)
-                        hA[b][i + j * lda] += 400;
+                        hA[b][i + j * lda] = std::real(hA[b][i + j * lda]) + 10;
                     else
-                        hA[b][i + j * lda] -= 5;
+                    {
+                        if(j == i + 1)
+                        {
+                            hA[b][i + j * lda] -= 5;
+                            hA[b][j + i * lda] = sconj(hA[b][i + j * lda]);
+                        }
+                        else
+                            hA[b][j + i * lda] = hA[b][i + j * lda] = 0;
+                    }
                 }
+                if(i == n / 4 || i == n / 2 || i == n - 1 || i == n / 7 || i == n / 5 || i == n / 3)
+                    hA[b][i + i * lda] *= -1; 
             }
+
+//print_host_matrix("A", n, n, hA[0], lda);
+
 
             // make copy of original data to test vectors if required
             if(test && evect == rocblas_evect_original)
@@ -294,6 +307,19 @@ void syevx_heevx_getError(const rocblas_handle handle,
         cblas_syevx_heevx<T>(evect, erange, uplo, n, hA[b], lda, vl, vu, il, iu, atol, hNev[b],
                              hW[b], hZ[b], ldz, work.data(), lwork, rwork.data(), iwork.data(),
                              hIfail[b], hinfo[b]);
+//print_host_matrix(std::cout, "infoCPU", 1, bc, hinfo.data(), 1);
+//print_host_matrix(std::cout, "nevCPU", 1, bc, hNev.data(), 1);
+//print_host_matrix(std::cout, "infoGPU", 1, bc, hinfoRes.data(), 1);
+//print_host_matrix(std::cout, "nevGPU", 1, bc, hNevRes.data(), 1);
+//    }
+//    if(erange == rocblas_erange_all)
+//    {
+//        for(rocblas_int b = 0; b < bc; ++b)
+//print_host_matrix(std::cout, "WCPU", 1, n, hW[0], 1);
+//print_host_matrix(std::cout, "WGPU", 1, n, hWRes[0], 1);
+//print_host_matrix("Z", n, hNev[0][0], hZRes[0], ldz);
+
+
 
     // Check info for non-convergence
     *max_err = 0;
@@ -492,11 +518,11 @@ void testing_syevx_heevx(Arguments& argus)
     rocblas_stride stZ = argus.get<rocblas_stride>("strideZ", ldz * n);
     rocblas_stride stF = argus.get<rocblas_stride>("strideF", n);
 
-    S vl = argus.get<S>("vl", 0);
-    S vu = argus.get<S>("vu", erangeC == 'V' ? 1 : 0);
+    S vl = S(argus.get<double>("vl", 0));
+    S vu = S(argus.get<double>("vu", erangeC == 'V' ? 1 : 0));
     rocblas_int il = argus.get<rocblas_int>("il", erangeC == 'I' ? 1 : 0);
     rocblas_int iu = argus.get<rocblas_int>("iu", erangeC == 'I' ? 1 : 0);
-    S abstol = argus.get<S>("abstol", 0);
+    S abstol = S(argus.get<double>("abstol", 0));
 
     rocblas_evect evect = char2rocblas_evect(evectC);
     rocblas_erange erange = char2rocblas_erange(erangeC);
