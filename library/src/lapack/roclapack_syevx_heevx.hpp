@@ -54,6 +54,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(BS1) syevx_sort_eigs(const rocblas_int n
                 tmp1 = W[jj];
             }
         }
+        __syncthreads();
 
         if(i != 0)
         {
@@ -295,15 +296,12 @@ rocblas_status rocsolver_syevx_heevx_template(rocblas_handle handle,
                                 stride, isplit, stride, info, batch_count, (rocblas_int*)work1,
                                 (S*)work2, (S*)work3, (S*)work4, (S*)work5, (rocblas_int*)work6);
 
-//print_device_matrix(std::cout,"inside W",1,n,W,1);
-
     if(evect != rocblas_evect_none)
     {
         // compute eigenvectors
         rocsolver_stein_template<T>(handle, n, D, 0, stride, E, 0, stride, nev, W, 0, strideW,
                                     iblock, stride, isplit, stride, Z, shiftZ, ldz, strideZ, ifail,
                                     strideF, info, batch_count, (S*)work1, (rocblas_int*)work2);
-//print_device_matrix("inZ1",n,n,Z,ldz);
 
         // apply unitary matrix to eigenvectors
         rocblas_int h_nev = (erange == rocblas_erange_index ? iu - il + 1 : n);
@@ -311,14 +309,12 @@ rocblas_status rocsolver_syevx_heevx_template(rocblas_handle handle,
             handle, rocblas_side_left, uplo, rocblas_operation_none, n, h_nev, A, shiftA, lda,
             strideA, tau, stride, Z, shiftZ, ldz, strideZ, batch_count, scalars, (T*)work1,
             (T*)work2, (T*)work3, (T**)nsplit_workArr);
-//print_device_matrix("inZ2",n,n,Z,ldz);
 
         // sort eigenvalues and eigenvectors
         dim3 grid(1, batch_count, 1);
         dim3 threads(BS1, 1, 1);
         ROCSOLVER_LAUNCH_KERNEL(syevx_sort_eigs<T>, grid, threads, 0, stream, n, nev, W, strideW, Z,
                                 shiftZ, ldz, strideZ, ifail, strideF, info);
-//print_device_matrix("inZ3",n,n,Z,ldz);
     }
 
     return rocblas_status_success;

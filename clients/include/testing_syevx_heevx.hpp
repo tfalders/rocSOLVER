@@ -188,7 +188,7 @@ void syevx_heevx_initData(const rocblas_handle handle,
     {
         rocblas_init<T>(hA, true);
 
-        // scale A to avoid singularities
+        // construct well conditioned matrix A such that all eigenvalues are in (-20, 20)
         for(rocblas_int b = 0; b < bc; ++b)
         {
             for(rocblas_int i = 0; i < n; i++)
@@ -201,7 +201,7 @@ void syevx_heevx_initData(const rocblas_handle handle,
                     {
                         if(j == i + 1)
                         {
-                            hA[b][i + j * lda] -= 5;
+                            hA[b][i + j * lda] = (hA[b][i + j * lda] - 5) / 10;
                             hA[b][j + i * lda] = sconj(hA[b][i + j * lda]);
                         }
                         else
@@ -211,9 +211,6 @@ void syevx_heevx_initData(const rocblas_handle handle,
                 if(i == n / 4 || i == n / 2 || i == n - 1 || i == n / 7 || i == n / 5 || i == n / 3)
                     hA[b][i + i * lda] *= -1; 
             }
-
-//print_host_matrix("A", n, n, hA[0], lda);
-
 
             // make copy of original data to test vectors if required
             if(test && evect == rocblas_evect_original)
@@ -307,19 +304,6 @@ void syevx_heevx_getError(const rocblas_handle handle,
         cblas_syevx_heevx<T>(evect, erange, uplo, n, hA[b], lda, vl, vu, il, iu, atol, hNev[b],
                              hW[b], hZ[b], ldz, work.data(), lwork, rwork.data(), iwork.data(),
                              hIfail[b], hinfo[b]);
-//print_host_matrix(std::cout, "infoCPU", 1, bc, hinfo.data(), 1);
-//print_host_matrix(std::cout, "nevCPU", 1, bc, hNev.data(), 1);
-//print_host_matrix(std::cout, "infoGPU", 1, bc, hinfoRes.data(), 1);
-//print_host_matrix(std::cout, "nevGPU", 1, bc, hNevRes.data(), 1);
-//    }
-//    if(erange == rocblas_erange_all)
-//    {
-//        for(rocblas_int b = 0; b < bc; ++b)
-//print_host_matrix(std::cout, "WCPU", 1, n, hW[0], 1);
-//print_host_matrix(std::cout, "WGPU", 1, n, hWRes[0], 1);
-//print_host_matrix("Z", n, hNev[0][0], hZRes[0], ldz);
-
-
 
     // Check info for non-convergence
     *max_err = 0;

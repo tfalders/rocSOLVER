@@ -226,7 +226,6 @@ void sygvx_hegvx_initData(const rocblas_handle handle,
                           const bool test,
                           const bool singular)
 {
-int mib=atoi(getenv("B"));
     if(CPU)
     {
         rocblas_int info;
@@ -238,7 +237,7 @@ int mib=atoi(getenv("B"));
         for(rocblas_int b = 0; b < bc; ++b)
         {
             // for testing purposes, we start with a reduced matrix M for the standard equivalent problem
-            // with spectrum in a desired range (90, 120). Then we construct the generalized pair
+            // with spectrum in a desired range (-20, 20). Then we construct the generalized pair
             // (A, B) from there.
             for(rocblas_int i = 0; i < n; i++)
             {
@@ -255,7 +254,7 @@ int mib=atoi(getenv("B"));
                     {
                         if(j == i + 1)
                         {
-                            hA[b][i + j * lda] -= 5;
+                            hA[b][i + j * lda] = (hA[b][i + j * lda] - 5) / 10;
                             hA[b][j + i * lda] = sconj(hA[b][i + j * lda]);
                         }
                         else
@@ -270,11 +269,6 @@ int mib=atoi(getenv("B"));
                 if(i == n / 4 || i == n / 2 || i == n - 1 || i == n / 7 || i == n / 5 || i == n / 3)
                     hA[b][i + i * lda] *= -1; 
             }
-//if(b==mib)
-//{
-//print_host_matrix("M", n, n, hA[mib], lda);
-//print_host_matrix("U", n, n, U[mib], ldu);
-//}
 
             // form B = U' U
             T one = T(1);
@@ -319,11 +313,7 @@ int mib=atoi(getenv("B"));
                               rocblas_operation_conjugate_transpose, rocblas_diagonal_non_unit, n,
                               n, one, U[b], ldu, hA[b], lda);
             }
-//if(mib==b)
-//{
-//print_host_matrix("A", n, n, hA[mib], lda);
-//print_host_matrix("B", n, n, hB[mib], ldb);
-//}
+            
             // store A and B for testing purposes
             if(test && evect != rocblas_evect_none)
             {
@@ -398,7 +388,6 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
                           double* max_err,
                           const bool singular)
 {
-//int mib=atoi(getenv("B"));
     constexpr bool COMPLEX = is_complex<T>;
 
     int lwork = (COMPLEX ? 2 * n : 8 * n);
@@ -445,21 +434,6 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
     // implicitly the equivalent non-converged matrix is very complicated and it boils
     // down to essentially run the algorithm again and until convergence is achieved.
     // We do test with indefinite matrices B).
-
-//    if(erange == rocblas_erange_value)
-//    {
-//print_host_matrix(std::cout, "infoCPU", 1, bc, hInfo.data(), 1);
-//print_host_matrix(std::cout, "nevCPU", 1, bc, hNev.data(), 1);
-//print_host_matrix(std::cout, "infoGPU", 1, bc, hInfoRes.data(), 1);
-//print_host_matrix(std::cout, "nevGPU", 1, bc, hNevRes.data(), 1);
-//    }
-//    if(erange == rocblas_erange_all)
-//    {
-//        for(rocblas_int b = 0; b < bc; ++b)
-//print_host_matrix(std::cout, "WCPU", 1, n, hW[mib], 1);
-//print_host_matrix(std::cout, "WGPU", 1, n, hWRes[mib], 1);
-//print_host_matrix("Z", n, hNev[mib][0], hZRes[mib], ldz);
-//    }*/
 
     // check info for non-convergence and/or positive-definiteness
     *max_err = 0;
@@ -543,11 +517,6 @@ void sygvx_hegvx_getError(const rocblas_handle handle,
 
                 // error is ||hA - hZRes|| / ||hA||
                 // using frobenius norm
-/*if(b==mib)
-{
-print_host_matrix("gold", n, hNev[mib][0], hA[mib], lda);
-print_host_matrix("computed", n, hNev[mib][0], hZRes[mib], ldz);
-}*/
                 err = norm_error('F', n, hNev[b][0], lda, hA[b], hZRes[b], ldz);
                 *max_err = err > *max_err ? err : *max_err;
             }

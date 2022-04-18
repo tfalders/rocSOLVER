@@ -35,15 +35,15 @@ const vector<vector<int>> size_range = {
     {10, 10, 10, 10, 0, 10, 1},
     // normal (valid) samples
     {1, 1, 1, 0, 10, 1, 1},
-    {12, 12, 15, -30, 30, 10, 12},
-    {20, 30, 30, 0, 15, 1, 20},
+    {12, 12, 15, -20, 20, 10, 12},
+    {20, 30, 30, 5, 15, 1, 20},
     {35, 35, 35, -10, 10, 1, 15},
-    {50, 60, 50, -15, 0, 20, 30}};
+    {50, 60, 50, -15, -5, 20, 30}};
 
 // for daily_lapack tests
-const vector<vector<int>> large_size_range = {{192, 192, 192, 0, 15, 100, 170},
+const vector<vector<int>> large_size_range = {{192, 192, 192, 5, 15, 100, 170},
                                               {256, 270, 256, -10, 10, 1, 256},
-                                              {300, 300, 330, -15, 0, 200, 300}};
+                                              {300, 300, 330, -15, -5, 200, 300}};
 
 template <typename T>
 Arguments syevx_heevx_setup_arguments(syevx_heevx_tuple tup)
