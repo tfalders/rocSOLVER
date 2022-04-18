@@ -67,12 +67,12 @@ ROCSOLVER_KERNEL void __launch_bounds__(BS1) syevx_sort_eigs(const rocblas_int n
             for(int k = tid; k < n; k += hipBlockDim_x)
                 swap(Z[k + i * ldz], Z[k + j * ldz]);
 
-            if(tid < info)
+            for(int k = tid; k < info; k += hipBlockDim_x)
             {
-                if(ifail[tid] == i + 1)
-                    ifail[tid] = j + 1;
-                else if(ifail[tid] == j + 1)
-                    ifail[tid] = i + 1;
+                if(ifail[k] == i + 1)
+                    ifail[k] = j + 1;
+                else if(ifail[k] == j + 1)
+                    ifail[k] = i + 1;
             }
         }
         __syncthreads();
