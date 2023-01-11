@@ -23191,7 +23191,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zgeblttrf_npvt_batched(rocblas_handle 
                 Stride from the start of one block A_{ji} to the same block in the next batch
                 instance A_{(j+1)i}.
                 There is no restriction for the value of strideA. Normal use case is strideA >=
-                lda*nb*nblocks.
+                lda*nb*(nblocks-1).
     @param[inout]
     B           pointer to type. Array on the GPU (the size depends on the value of strideB).\n
                 On entry, contains the blocks B_{ji} arranged one after the other.
@@ -23218,7 +23218,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zgeblttrf_npvt_batched(rocblas_handle 
                 Stride from the start of one block B_{ji} to the same block in the next batch
                 instance B_{(j+1)i}.
                 There is no restriction for the value of strideC. Normal use case is strideC >=
-                ldc*nb*nblocks.
+                ldc*nb*(nblocks-1).
     @param[out]
     info        pointer to rocblas_int. Array of batch_count integers on the GPU.\n
                 If info[j] = 0, successful exit for factorization of j-th batch instance.
@@ -23297,18 +23297,44 @@ ROCSOLVER_EXPORT rocblas_status
     \brief GEBLTTRF_NPVT_INTERLEAVED_BATCHED computes the LU factorization of a batch of block tridiagonal
     matrices without partial pivoting.
 
+    \details The LU factorization of a block tridiagonal matrix \f$M_j\f$ in the batch
 
-    \details The LU factorization of linear system may be represented as
-    the following. The "D" matrix over-writes the storage for "B" matrices
-    and "U" matrices over-write storage for the "C" matrices. Note
-    that the upper triangular factor has identity matrices on the main
-    diagonal.
+    \f[
+        M_j = \left[\begin{array}{ccccc}
+        B_{j1} & C_{j1}\\
+        A_{j1} & B_{j2} & C_{j2}\\
+         & \ddots & \ddots & \ddots \\
+         &  & A_{j(n-2)} & B_{j(n-1)} & C_{j(n-1)}\\
+         &  &  & A_{j(n-1)} & B_{jn}
+        \end{array}\right]
+    \f]
 
+    with \f$n = \mathrm{nblocks}\f$ diagonal blocks of size nb, can be represented as
 
-   [B1, C1, 0      ]   [ D1         ]   [ I  U1       ]
-   [A1, B2, C2     ] = [ A1 D2      ] * [    I  U2    ]
-   [    A2, B3, C3 ]   [    A2 D3   ]   [       I  U3 ]
-   [        A3, B4 ]   [       A3 D4]   [          I4 ]
+    \f[
+        M_j = \left[\begin{array}{cccc}
+        L_{j1} \\
+        A_{j1} & L_{j2}\\
+         & \ddots & \ddots \\
+         &  & A_{j(n-1)} & L_{jn}
+        \end{array}\right] \left[\begin{array}{cccc}
+        I & U_{j1} \\
+         & \ddots & \ddots \\
+         &  & I & U_{j(n-1)}\\
+         &  &  & I
+        \end{array}\right] = L_jU_j
+    \f]
+
+    where the blocks \f$L_{ji}\f$ and \f$U_{ji}\f$ are also general blocks of size nb.
+
+    \note
+    The data format for interleaved batched arrays is different from that of most other rocSOLVER functions.
+    Here, the batch index is the fastest-varying index; that is, for a given element with indices (r,c),
+    the (r,c)-th element from each batch instance will be listed contiguously in the array before moving
+    on to the next element. For example, element (r,c) from \f$A_{ji}\f$ can be accessed as
+    \code{.cpp}
+    A[j + (r * batch_count) + (c * batch_count * lda) + (i * batch_count * lda * nb)].
+    \endcode
 
     @param[in]
     handle      rocblas_handle.
@@ -23317,26 +23343,28 @@ ROCSOLVER_EXPORT rocblas_status
                 The number of rows and columns of each block.
     @param[in]
     nblocks     rocblas_int. nblocks >= 0.\n
-                The number of blocks along the diagonal of the matrix.
+                The number of blocks along the diagonal of each matrix in the batch.
     @param[in]
-    A           pointer to type. Array on the GPU of dimension max(0, batch_count*lda*nb*(nblocks-1)).\n
-                Array A is dimensioned as (batch_count by lda by nb by (nblocks-1)).
+    A           pointer to type. Array on the GPU of dimension batch_count*lda*nb*(nblocks-1).\n
+                Contains the blocks A_{ji} arranged one after the other.
     @param[in]
     lda         rocblas_int. lda >= nb.\n
-                Specifies the leading dimension of matrix blocks A_j.
-    @param[in]
+                Specifies the leading dimension of blocks A_{ji}.
+    @param[inout]
     B           pointer to type. Array on the GPU of dimension batch_count*ldb*nb*nblocks.\n
-                Array B is dimensioned as (batch_count by ldb by nb by nblocks).
+                On entry, contains the blocks B_{ji} arranged one after the other.
+                On exit it is overwritten by blocks L_{ji} in factorized form as returned by
+                \ref rocsolver_sgetrf_npvt "GETRF_NPVT"
     @param[in]
     ldb         rocblas_int. ldb >= nb.\n
-                Specifies the leading dimension of matrix blocks B_j.
-    @param[out]
-    C           pointer to type. Array on the GPU of dimension max(0, batch_count*ldc*nb*(nblocks-1)).\n
-                Array C is dimensioned as (batch_count by ldc by nb by (nblocks-1)).
-
+                Specifies the leading dimension of matrix blocks B_{ji}.
+    @param[inout]
+    C           pointer to type. Array on the GPU of dimension batch_count*ldc*nb*(nblocks-1).\n
+                On entry, contains the blocks C_{ji} arranged one after the other.
+                On exit it is overwritten by blocks U_{ji}.
     @param[in]
     ldc         rocblas_int. ldc >= nb.\n
-                Specifies the leading dimension of matrix blocks C_j.
+                Specifies the leading dimension of matrix blocks C_{ji}.
     @param[out]
     info        pointer to rocblas_int. Array of batch_count integers on the GPU.\n
                 If info[j] = 0, successful exit for factorization of j-th batch instance.
@@ -23710,7 +23738,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zgeblttrs_npvt_batched(rocblas_handle 
                 Stride from the start of one block A_{ji} to the same block in the next batch
                 instance A_{(j+1)i}.
                 There is no restriction for the value of strideA. Normal use case is strideA >=
-                lda*nb*nblocks
+                lda*nb*(nblocks-1)
     @param[in]
     B           pointer to type. Array on the GPU (the size depends on the value of strideB).\n
                 Contains the blocks B_{ji} as returned by \ref rocsolver_sgeblttrf_npvt_strided_batched "GEBLTTRF_NPVT_STRIDED_BATCHED".
@@ -23734,7 +23762,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_zgeblttrs_npvt_batched(rocblas_handle 
                 Stride from the start of one block C_{ji} to the same block in the next batch
                 instance C_{(j+1)i}.
                 There is no restriction for the value of strideC. Normal use case is strideC >=
-                ldc*nb*nblocks
+                ldc*nb*(nblocks-1)
     @param[inout]
     X           pointer to type. Array on the GPU (the size depends on the value of strideX).\n
                 On entry, X contains the right-hand-side blocks R_{ji}. It is overwritten by solution
@@ -23831,25 +23859,45 @@ ROCSOLVER_EXPORT rocblas_status
 //! @}
 
 /*! @{
-    \brief GEBLTTRS_NPVT_INTERLEAVED_BATCHED solves a system of linear equations given by a block
-    tridiagonal matrix in its factorized form (without partial pivoting).
+    \brief GEBLTTRS_NPVT_INTERLEAVED_BATCHED solves a batch of system of linear equations given by block
+    tridiagonal matrices in its factorized form (without partial pivoting).
 
+    \details Each linear system has the form
 
-    \details The LU factorization of linear system may be represented as
-    the following. The "D" matrix over-writes the storage for "B" matrices
-    and "U" matrices over-write storage for the "C" matrices. Note
-    that the upper triangular factor has identity matrices on the main
-    diagonal.
+    \f[
+        M_jX_j = \left[\begin{array}{ccccc}
+        B_{j1} & C_{j1}\\
+        A_{j1} & B_{j2} & C_{j2}\\
+         & \ddots & \ddots & \ddots \\
+         &  & A_{j(n-2)} & B_{j(n-1)} & C_{j(n-1)}\\
+         &  &  & A_{j(n-1)} & B_{jn}
+        \end{array}\right]\left[\begin{array}{c}
+        X_{j1}\\
+        X_{j2}\\
+        X_{j3}\\
+        \vdots\\
+        X_{jn}
+        \end{array}\right]=\left[\begin{array}{c}
+        R_{j1}\\
+        R_{j2}\\
+        R_{j3}\\
+        \vdots\\
+        R_{jn}
+        \end{array}\right]=R_j
+    \f]
 
+    where matrix \f$M_j\f$ has \f$n = \mathrm{nblocks}\f$ diagonal blocks of size nb, and the right-hand-side
+    blocks \f$R_{ji}\f$ are general blocks of size nb-by-nrhs. The blocks of matrix \f$M_j\f$ should be in
+    the factorized form as returned by \ref rocsolver_sgeblttrf_npvt_interleaved_batched "GEBLTTRF_NPVT_INTERLEAVED_BATCHED".
 
-
-
-
- [B1, C1, 0      ]   [ D1         ]   [ I  U1       ]
- [A1, B2, C2     ] = [ A1 D2      ] * [    I  U2    ]
- [    A2, B3, C3 ]   [    A2 D3   ]   [       I  U3 ]
- [        A3, B4 ]   [       A3 D4]   [          I4 ]
-
+    \note
+    The data format for interleaved batched arrays is different from that of most other rocSOLVER functions.
+    Here, the batch index is the fastest-varying index; that is, for a given element with indices (r,c),
+    the (r,c)-th element from each batch instance will be listed contiguously in the array before moving
+    on to the next element. For example, element (r,c) from \f$A_{ji}\f$ can be accessed as
+    \code{.cpp}
+    A[j + (r * batch_count) + (c * batch_count * lda) + (i * batch_count * lda * nb)].
+    \endcode
 
     @param[in]
     handle      rocblas_handle.
@@ -23858,35 +23906,35 @@ ROCSOLVER_EXPORT rocblas_status
                 The number of rows and columns of each block.
     @param[in]
     nblocks     rocblas_int. nblocks >= 0.\n
-                The number of blocks along the diagonal of the matrix.
+                The number of blocks along the diagonal of each matrix in the batch.
     @param[in]
     nrhs        rocblas_int. nrhs >= 0.\n
-                The number of right hand sides, i.e., the number of columns of X_j.
+                The number of right hand sides, i.e., the number of columns of blocks R_{ji}.
     @param[in]
-    A           pointer to type. Array on the GPU of dimension max(0, batch_count*lda*nb*(nblocks-1)).\n
-
+    A           pointer to type. Array on the GPU of dimension batch_count*lda*nb*(nblocks-1).\n
+                Contains the blocks A_{ji} as returned by \ref rocsolver_sgeblttrf_npvt_interleaved_batched "GEBLTTRF_NPVT_INTERLEAVED_BATCHED".
     @param[in]
     lda         rocblas_int. lda >= nb.\n
-                Specifies the leading dimension of matrix blocks A_j.
+                Specifies the leading dimension of blocks A_{ji}.
     @param[in]
     B           pointer to type. Array on the GPU of dimension batch_count*ldb*nb*nblocks.\n
-
+                Contains the blocks B_{ji} as returned by \ref rocsolver_sgeblttrf_npvt_interleaved_batched "GEBLTTRF_NPVT_INTERLEAVED_BATCHED".
     @param[in]
     ldb         rocblas_int. ldb >= nb.\n
-                Specifies the leading dimension of matrix blocks B_j.
-    @param[out]
-    C           pointer to type. Array on the GPU of dimension max(0, batch_count*ldc*nb*(nblocks-1)).\n
-
+                Specifies the leading dimension of blocks B_{ji}.
+    @param[in]
+    C           pointer to type. Array on the GPU of dimension batch_count*ldc*nb*(nblocks-1).\n
+                Contains the blocks C_{ji} as returned by \ref rocsolver_sgeblttrf_npvt_interleaved_batched "GEBLTTRF_NPVT_INTERLEAVED_BATCHED".
     @param[in]
     ldc         rocblas_int. ldc >= nb.\n
-                Specifies the leading dimension of matrix blocks C_j.
-    @param[in,out]
+                Specifies the leading dimension of blocks C_{ji}.
+    @param[inout]
     X           pointer to type. Array on the GPU of dimension batch_count*ldx*nblocks*nrhs.\n
-                On input, array X contains the right-hand-side vectors and the solution vectors on output.
-
+                On entry, X contains the right-hand-side blocks R_{ji}. It is overwritten by solution
+                vectors X_{ji} on exit.
     @param[in]
     ldx         rocblas_int. ldx >= nb.\n
-                Specifies the leading dimension of right hand blocks X_j.
+                Specifies the leading dimension of blocks X_{ji}.
     @param[in]
     batch_count rocblas_int. batch_count >= 0.\n
                 Number of matrices in the batch.
