@@ -84,9 +84,13 @@ __device__ void gemm_nn_bf_device(const rocblas_int batch_count,
 }
 
 template <typename T, typename I>
-__device__ void
-    getrf_npvt_bf_device(I const batch_count, I const m, I const n, T* A_, I const lda, 
-                         I const info_offset, I info[])
+__device__ void getrf_npvt_bf_device(I const batch_count,
+                                     I const m,
+                                     I const n,
+                                     T* A_,
+                                     I const lda,
+                                     I const info_offset,
+                                     I info[])
 {
     I const min_mn = (m < n) ? m : n;
     T const one = 1;
@@ -139,8 +143,7 @@ __device__ void getrs_npvt_bf(rocblas_int const batch_count,
                               T* A_,
                               rocblas_int const lda,
                               T* B_,
-                              rocblas_int const ldb 
-                              )
+                              rocblas_int const ldb)
 {
     /*
     !     ---------------------------------------------------
@@ -235,22 +238,21 @@ __device__ void getrs_npvt_bf(rocblas_int const batch_count,
 
     }; // end for ir
 
-
 #undef A
 #undef B
 }
 
 template <typename T, typename I>
-__global__ __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrf_npvt_bf_kernel(I const nb,
-                                                                           I const nblocks,
-                                                                           T* A_,
-                                                                           I const lda,
-                                                                           T* B_,
-                                                                           I const ldb,
-                                                                           T* C_,
-                                                                           I const ldc,
-                                                                           I devinfo_array[],
-                                                                           I batch_count)
+ROCSOLVER_KERNEL __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrf_npvt_bf_kernel(I const nb,
+                                                                                 I const nblocks,
+                                                                                 T* A_,
+                                                                                 I const lda,
+                                                                                 T* B_,
+                                                                                 I const ldb,
+                                                                                 T* C_,
+                                                                                 I const ldc,
+                                                                                 I devinfo_array[],
+                                                                                 I batch_count)
 {
 // note adjust indexing for array A
 #define A(iv, ia, ja, k) A_[indx4f(iv, ia, ja, ((k)-1), batch_count, lda, nb)]
@@ -288,7 +290,7 @@ __global__ __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrf_npvt_bf_kernel(I con
         I const nn = nb;
         T* Ap = &(D(iv, 1, 1, k));
 
-        I const info_offset = (k-1)*nb;
+        I const info_offset = (k - 1) * nb;
         getrf_npvt_bf_device<T>(batch_count, mm, nn, Ap, ldd, info_offset, devinfo_array);
         __syncthreads();
     };
@@ -302,7 +304,7 @@ __global__ __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrf_npvt_bf_kernel(I con
 
             T* Ap = &(D(iv, 1, 1, k));
             T* Bp = &(C(iv, 1, 1, k));
-            getrs_npvt_bf<T>(batch_count, nn, nrhs, Ap, ldd, Bp, ldc );
+            getrs_npvt_bf<T>(batch_count, nn, nrhs, Ap, ldd, Bp, ldc);
             __syncthreads();
         };
 
@@ -330,7 +332,7 @@ __global__ __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrf_npvt_bf_kernel(I con
             I const nn = nb;
             T* Ap = &(D(iv, 1, 1, k + 1));
 
-            I const info_offset = ((k+1)-1)*nb;
+            I const info_offset = ((k + 1) - 1) * nb;
             getrf_npvt_bf_device<T>(batch_count, mm, nn, Ap, ldd, info_offset, devinfo_array);
             __syncthreads();
         };
@@ -374,7 +376,7 @@ rocblas_status rocsolver_geblttrf_npvt_interleaved_argCheck(rocblas_handle handl
                                                             U B,
                                                             U C,
                                                             rocblas_int* info,
-                                                            const rocblas_int batch_count )
+                                                            const rocblas_int batch_count)
 {
     // order is important for unit tests:
 

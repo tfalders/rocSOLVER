@@ -29,7 +29,7 @@
 #include "rocsolver/rocsolver.h"
 
 template <typename T>
-__global__
+ROCSOLVER_KERNEL
     __launch_bounds__(GEBLT_BLOCK_DIM) void geblttrs_npvt_bf_kernel(const rocblas_int nb,
                                                                     const rocblas_int nblocks,
                                                                     const rocblas_int nrhs,
