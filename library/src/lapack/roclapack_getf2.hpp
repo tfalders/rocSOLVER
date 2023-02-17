@@ -1034,16 +1034,18 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
         }
 #endif
 
-        if(printing && j % blk == 0)
+        if(printing && ((j > 0 && j % blk == 0) || j == dim - 1))
         {
-            rocblas_int jb = min(dim - j, blk);
+            rocblas_int jj = iter * blk;
+            rocblas_int jb = min(dim - jj, blk);
 
             std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
-            std::cout << fmt::format("Printing {} at j={}...", filename, j);
+            std::cout << fmt::format("Printing {} at j={}...", filename, jj);
 
             std::ofstream file;
             file.open(filename);
-            print_device_matrix(file, "Column block", m - j, jb, A + shiftA + idx2D(j, j, lda), lda);
+            print_device_matrix(file, "Column block", m - jj, jb, A + shiftA + idx2D(jj, jj, lda),
+                                lda);
             file.close();
 
             std::cout << "Done!" << std::endl;
