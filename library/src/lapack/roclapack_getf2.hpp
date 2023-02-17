@@ -1039,7 +1039,7 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
             rocblas_int jb = min(dim - j, blk);
 
             std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
-            std::cout << "Printing " << filename << "... ";
+            std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
             std::ofstream file;
             file.open(filename);

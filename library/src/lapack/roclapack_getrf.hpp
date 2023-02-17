@@ -368,7 +368,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
         if(printing)
         {
             std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
-            std::cout << "Printing " << filename << "... ";
+            std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
             std::ofstream file;
             file.open(filename);
@@ -392,7 +392,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
             if(printing)
             {
                 std::string filename = fmt::format("{}/blkR_{}.txt", outfolder, iter);
-                std::cout << "Printing " << filename << "... ";
+                std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
                 std::ofstream file;
                 file.open(filename);
@@ -427,7 +427,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                 if(printing)
                 {
                     std::string filename = fmt::format("{}/trm_{}.txt", outfolder, iter);
-                    std::cout << "Printing " << filename << "... ";
+                    std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
                     std::ofstream file;
                     file.open(filename);

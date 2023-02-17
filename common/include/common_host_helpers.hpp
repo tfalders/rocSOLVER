@@ -1,5 +1,5 @@
 /* ************************************************************************
- * Copyright (c) 2021-2022 Advanced Micro Devices, Inc.
+ * Copyright (c) 2021-2023 Advanced Micro Devices, Inc.
  * ************************************************************************ */
 
 #pragma once
@@ -173,8 +173,8 @@ void print_device_matrix(std::ostream& os,
                          const rocblas_fill uplo = rocblas_fill_full)
 {
     std::vector<T> hA(lda * n);
-    THROW_IF_HIP_ERROR(
-        hipMemcpy(hA.data(), A + idx * stride, sizeof(T) * lda * n, hipMemcpyDeviceToHost));
+    THROW_IF_HIP_ERROR(hipMemcpy(hA.data(), A + idx * stride, sizeof(T) * (lda * (n - 1) + n),
+                                 hipMemcpyDeviceToHost));
 
     print_to_stream<T>(os, name, m, n, hA.data(), lda, uplo);
 }
@@ -194,7 +194,8 @@ void print_device_matrix(std::ostream& os,
     std::vector<T> hA(lda * n);
     T* AA[1];
     THROW_IF_HIP_ERROR(hipMemcpy(AA, A + idx, sizeof(T*), hipMemcpyDeviceToHost));
-    THROW_IF_HIP_ERROR(hipMemcpy(hA.data(), AA[0], sizeof(T) * lda * n, hipMemcpyDeviceToHost));
+    THROW_IF_HIP_ERROR(
+        hipMemcpy(hA.data(), AA[0], sizeof(T) * (lda * (n - 1) + n), hipMemcpyDeviceToHost));
 
     print_to_stream<T>(os, name, m, n, hA.data(), lda, uplo);
 }
@@ -212,8 +213,8 @@ void print_device_matrix(const std::string file,
 {
     std::ofstream os(file);
     std::vector<T> hA(lda * n);
-    THROW_IF_HIP_ERROR(
-        hipMemcpy(hA.data(), A + idx * stride, sizeof(T) * lda * n, hipMemcpyDeviceToHost));
+    THROW_IF_HIP_ERROR(hipMemcpy(hA.data(), A + idx * stride, sizeof(T) * (lda * (n - 1) + n),
+                                 hipMemcpyDeviceToHost));
 
     print_to_stream<T>(os, "", m, n, hA.data(), lda, uplo);
 }
@@ -233,7 +234,8 @@ void print_device_matrix(const std::string file,
     std::vector<T> hA(lda * n);
     T* AA[1];
     THROW_IF_HIP_ERROR(hipMemcpy(AA, A + idx, sizeof(T*), hipMemcpyDeviceToHost));
-    THROW_IF_HIP_ERROR(hipMemcpy(hA.data(), AA[0], sizeof(T) * lda * n, hipMemcpyDeviceToHost));
+    THROW_IF_HIP_ERROR(
+        hipMemcpy(hA.data(), AA[0], sizeof(T) * (lda * (n - 1) + n), hipMemcpyDeviceToHost));
 
     print_to_stream<T>(os, "", m, n, hA.data(), lda, uplo);
 }
