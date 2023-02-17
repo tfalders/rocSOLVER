@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
- * Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
  * ***********************************************************************/
 
 #pragma once
@@ -13,6 +13,13 @@
 #include "roclapack_getf2.hpp"
 #include "rocsolver/rocsolver.h"
 #include "rocsolver_run_specialized_kernels.hpp"
+
+#include <cstdlib>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
+#include <fstream>
+#include <iostream>
+#include <string>
 
 /** Constants for inner block size of getrf **/
 // clang-format off
@@ -662,6 +669,11 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                                                       shiftP, strideP, info, batch_count, scalars,
                                                       pivotval, pivotidx, pivot);
 
+    bool printing = false;
+    const char* outfolder;
+    if((outfolder = std::getenv("GETRF_OUT_FOLDER")) != nullptr)
+        printing = true;
+
     // everything must be executed with scalars on the host
     rocblas_pointer_mode old_mode;
     rocblas_get_pointer_mode(handle, &old_mode);
@@ -684,6 +696,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
     }
 
     // MAIN LOOP
+    rocblas_int iter = 0;
     for(rocblas_int j = 0; j < dim; j += blk)
     {
         jb = min(dim - j, blk);
@@ -712,6 +725,19 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                 work3, work4);
         }
 
+        if(printing)
+        {
+            std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
+            std::cout << "Printing " << filename << "... ";
+
+            std::ofstream file;
+            file.open(filename);
+            print_device_matrix(file, "Column block", m - j, jb, A + shiftA + idx2D(j, j, lda), lda);
+            file.close();
+
+            std::cout << "Done!" << std::endl;
+        }
+
         // update trailing matrix
         nextpiv = j + jb; //position for the matrix update
         mm = m - nextpiv; //size for the matrix update
@@ -722,6 +748,20 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                 handle, rocblas_side_left, rocblas_operation_none, rocblas_diagonal_unit, jb, nn, A,
                 shiftA + idx2D(j, j, lda), lda, strideA, A, shiftA + idx2D(j, nextpiv, lda), lda,
                 strideA, batch_count, optim_mem, work1, work2, work3, work4);
+
+            if(printing)
+            {
+                std::string filename = fmt::format("{}/blkR_{}.txt", outfolder, iter);
+                std::cout << "Printing " << filename << "... ";
+
+                std::ofstream file;
+                file.open(filename);
+                print_device_matrix(file, "Row block", jb, nn, A + shiftA + idx2D(j, nextpiv, lda),
+                                    lda);
+                file.close();
+
+                std::cout << "Done!" << std::endl;
+            }
 
             if(nextpiv < m)
             {
@@ -743,8 +783,24 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                                        nn, jb, A, shiftA + idx2D(nextpiv, j, lda),
                                        shiftA + idx2D(j, nextpiv, lda),
                                        shiftA + idx2D(nextpiv, nextpiv, lda), lda, strideA);*/
+
+                if(printing)
+                {
+                    std::string filename = fmt::format("{}/trm_{}.txt", outfolder, iter);
+                    std::cout << "Printing " << filename << "... ";
+
+                    std::ofstream file;
+                    file.open(filename);
+                    print_device_matrix(file, "Trailing matrix", mm, nn,
+                                        A + shiftA + idx2D(nextpiv, nextpiv, lda), lda);
+                    file.close();
+
+                    std::cout << "Done!" << std::endl;
+                }
             }
         }
+
+        iter++;
     }
 
     rocblas_set_pointer_mode(handle, old_mode);
