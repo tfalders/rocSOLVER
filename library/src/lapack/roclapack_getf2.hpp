@@ -5,7 +5,7 @@
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
  *
- * Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
  * ***********************************************************************/
 
 #pragma once
@@ -15,6 +15,373 @@
 #include "rocblas.hpp"
 #include "rocsolver/rocsolver.h"
 #include "rocsolver_run_specialized_kernels.hpp"
+
+#include <cstdlib>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
+#include <fstream>
+#include <iostream>
+#include <string>
+
+/** Constants for inner block size of getrf **/
+// clang-format off
+#define GETRF_NUMROWS_REAL 20
+#define GETRF_NUMCOLS_REAL 13
+#define GETRF_INTERVALSROW_REAL                             \
+    64, 128, 160, 256, 512, 768, 1024, 1152, 1408, 1792,    \
+    1856, 2048, 2560, 2944, 2304, 3584, 5376, 6400, 9216
+#define GETRF_INTERVALSCOL_REAL                             \
+    20, 28, 40, 56, 80, 112, 144, 208, 240, 288, 416, 480
+#define GETRF_INNBLKSIZES_REAL                              \
+    {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1},    \
+    {1,  1,  1,  1, 32, 32, 32, 32, 32, 32, 32, 32, 32},    \
+    {1,  1,  1, 16, 32, 32, 32, 32, 32, 32, 32, 32, 32},    \
+    {1,  1,  1, 16, 32, 24, 16, 16, 16, 32, 32, 32, 32},    \
+    {1,  1, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16},    \
+    {1,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8, 16, 16},    \
+    {1,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8},    \
+    {1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16,  8,  8},    \
+    {1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16, 16, 16},    \
+    {1,  1,  1,  1,  1,  1, 16, 32, 32, 24, 16, 16, 16},    \
+    {1,  1,  1,  1,  1, 24, 16, 32, 32, 24, 16, 24, 16},    \
+    {1,  1,  1,  1,  1, 24, 16, 32, 16, 32, 24, 24, 32},    \
+    {1,  1,  1,  1, 24, 24, 16, 32, 16, 32, 24, 24, 32},    \
+    {1,  1,  1,  1, 24, 24, 16, 32, 16, 32, 24, 32, 32},    \
+    {1,  1,  1,  1, 24, 24, 16, 16, 16, 32, 24, 32, 32},    \
+    {1,  1,  1,  1, 24, 24, 16, 16, 16, 32, 32, 32, 32},    \
+    {1,  1,  1, 24, 24, 24, 16, 16, 16, 32, 32, 32, 32},    \
+    {1, 16, 16, 24, 24, 24, 16, 16, 16, 32, 32, 32, 40},    \
+    {1, 16, 16, 24, 24, 24, 16, 16, 24, 32, 32, 32, 40},    \
+    {1,  8, 16, 24, 24, 24, 16, 16, 24, 32, 32, 32, 40}
+
+#define GETRF_BATCH_NUMROWS_REAL 16
+#define GETRF_BATCH_NUMCOLS_REAL 13
+#define GETRF_BATCH_INTERVALSROW_REAL                       \
+    38, 48, 54, 64, 128, 144, 152, 216, 240, 256, 304, 432, \
+    480, 608, 1024
+#define GETRF_BATCH_INTERVALSCOL_REAL                       \
+    20, 28, 40, 56, 80, 112, 144, 176, 288, 352, 416, 480
+#define GETRF_BATCH_INNBLKSIZES_REAL                        \
+    {1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1},    \
+    {1,  1,  1, 24, 24, 24, 24,  1,  1,  1,  1,  1,  1},    \
+    {1,  1,  1, 24, 32, 32, 32, 32, 32,  1,  1,  1,  1},    \
+    {1,  1,  1, 24, 32, 32, 32, 32, 32, 32,  1,  1,  1},    \
+    {1,  1, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24},    \
+    {1,  1, 16, 16, 16, 24, 24, 24, 24, 24, 24, 24, 24},    \
+    {1, 16, 16, 16, 16, 24, 24, 24, 24, 24, 24, 24, 24},    \
+    {1, 16, 16, 16, 16, 16, 16, 16, 24, 24, 24, 24, 24},    \
+    {1, 16, 16, 16, 16, 16, 16, 16, 16, 16, 24, 24, 24},    \
+    {8, 16, 16, 16, 16, 16, 16, 16, 16, 16, 24, 24, 24},    \
+    {8,  8,  8,  8, 16, 16, 16, 16, 16, 16, 16, 16, 16},    \
+    {8,  8,  8,  8,  8, 16, 16, 16, 16, 16, 16, 16, 16},    \
+    {8,  8,  8,  8,  8,  8, 16, 16, 16, 16, 16, 16, 16},    \
+    {8,  8,  8,  8,  8,  8, 16, 16, 16, 16, 16, 16, 24},    \
+    {8,  8,  8,  8,  8,  8,  8, 16, 16, 16, 16, 16, 24},    \
+    {8,  8,  8,  8, 16, 16, 16, 16, 16, 16, 16, 24, 24}
+
+#define GETRF_NPVT_NUMROWS_REAL 4
+#define GETRF_NPVT_NUMCOLS_REAL 3
+#define GETRF_NPVT_INTERVALSROW_REAL                        \
+    64, 1536, 3072
+#define GETRF_NPVT_INTERVALSCOL_REAL                        \
+    40, 56
+#define GETRF_NPVT_INNBLKSIZES_REAL                         \
+    {1, 1, 1},                                              \
+    {1, 1, 16},                                             \
+    {1, 24, 16},                                            \
+    {1, 1, 16}
+
+#define GETRF_NPVT_BATCH_NUMROWS_REAL 3
+#define GETRF_NPVT_BATCH_NUMCOLS_REAL 3
+#define GETRF_NPVT_BATCH_INTERVALSROW_REAL                  \
+    40, 46
+#define GETRF_NPVT_BATCH_INTERVALSCOL_REAL                  \
+    40, 56
+#define GETRF_NPVT_BATCH_INNBLKSIZES_REAL                   \
+    {1, 1, 1},                                              \
+    {1, 1, 32},                                             \
+    {1, 16, 32}
+
+#define GETRF_NUMROWS_COMPLEX 21
+#define GETRF_NUMCOLS_COMPLEX 10
+#define GETRF_INTERVALSROW_COMPLEX                          \
+    64, 128, 160, 192, 256, 320, 512, 768, 896, 1024, 1216, \
+    1536, 1728, 1984, 2560, 2944, 3712, 5632, 7424, 9216
+#define GETRF_INTERVALSCOL_COMPLEX                          \
+    20, 28, 40, 56, 80, 144, 208, 288, 416
+#define GETRF_INNBLKSIZES_COMPLEX                           \
+    {1,  1,  1,  1,  1,  1,  1,  1,  1,  1},                \
+    {1,  1,  1,  1, 16, 16, 32, 32, 32, 32},                \
+    {1,  1,  1, 16, 16, 16, 32, 32, 32, 32},                \
+    {1,  1,  1, 16, 16, 16, 16, 16, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 16, 16, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 16, 16, 16, 16},                \
+    {1,  8, 16, 16, 16, 16, 16, 16, 16, 16},                \
+    {1,  8,  8,  8,  8,  8,  8,  8, 16, 16},                \
+    {8,  8,  8,  8,  8,  8,  8,  8, 16, 16},                \
+    {8,  8,  8,  8,  8,  8,  8,  8,  8,  8},                \
+    {1,  1,  1,  1,  1, 24, 16, 16,  8,  8},                \
+    {1,  1,  1,  1,  1, 24, 16, 16, 24, 16},                \
+    {1,  1,  1,  1,  1, 24, 16, 16, 24, 24},                \
+    {1,  1,  1,  1, 16, 24, 32, 32, 24, 24},                \
+    {1,  1,  1,  1, 16, 24, 32, 32, 32, 32},                \
+    {1,  1,  1,  1, 16, 24, 16, 32, 32, 32},                \
+    {1,  1,  1, 16, 16, 16, 16, 32, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 16, 32, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 16, 16, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 24, 16, 32, 32},                \
+    {1,  1, 16, 16, 16, 16, 24, 24, 32, 32}
+
+#define GETRF_BATCH_NUMROWS_COMPLEX 9
+#define GETRF_BATCH_NUMCOLS_COMPLEX 6
+#define GETRF_BATCH_INTERVALSROW_COMPLEX                    \
+    24, 26, 32, 128, 208, 256, 304, 432
+#define GETRF_BATCH_INTERVALSCOL_COMPLEX                    \
+    20, 28, 40, 80, 144
+#define GETRF_BATCH_INNBLKSIZES_COMPLEX                     \
+    {1,  1,  1,  1,  1,  1},                                \
+    {1,  1, 16, 16,  1,  1},                                \
+    {1,  1, 16, 16, 16,  1},                                \
+    {1,  1, 16, 16, 16, 16},                                \
+    {1, 16, 16, 16, 16, 16},                                \
+    {1,  8, 16, 16, 16, 16},                                \
+    {8,  8,  8, 16, 16, 16},                                \
+    {8,  8,  8,  8, 16, 16},                                \
+    {8,  8,  8,  8,  8, 16}
+
+#define GETRF_NPVT_NUMROWS_COMPLEX 4
+#define GETRF_NPVT_NUMCOLS_COMPLEX 4
+#define GETRF_NPVT_INTERVALSROW_COMPLEX                     \
+    64, 384, 5376
+#define GETRF_NPVT_INTERVALSCOL_COMPLEX                     \
+    56, 80, 288
+#define GETRF_NPVT_INNBLKSIZES_COMPLEX                      \
+    {1,  1,  1,  1},                                        \
+    {1,  1,  8,  8},                                        \
+    {1,  1,  8, 16},                                        \
+    {1, 32,  8, 16}
+
+#define GETRF_NPVT_BATCH_NUMROWS_COMPLEX 5
+#define GETRF_NPVT_BATCH_NUMCOLS_COMPLEX 4
+#define GETRF_NPVT_BATCH_INTERVALSROW_COMPLEX               \
+    24, 256, 640, 1024
+#define GETRF_NPVT_BATCH_INTERVALSCOL_COMPLEX               \
+    20, 28, 288
+#define GETRF_NPVT_BATCH_INNBLKSIZES_COMPLEX                \
+    {1, 1, 1, 1},                                           \
+    {1, 1, 16, 16},                                         \
+    {1, 1, 16, 32},                                         \
+    {1, 8, 16, 32},                                         \
+    {1, 8, 16, 16}
+// clang-format on
+
+/** This function returns the outer block size based on defined variables
+    tunable by the user (defined in ideal_sizes.hpp) **/
+template <bool ISBATCHED, typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
+rocblas_int getrf_get_blksize(rocblas_int dim, const bool pivot)
+{
+    rocblas_int blk;
+
+    if(ISBATCHED)
+    {
+        if(pivot)
+        {
+            rocblas_int size[] = {GETRF_BATCH_BLKSIZES_REAL};
+            rocblas_int intervals[] = {GETRF_BATCH_INTERVALS_REAL};
+            rocblas_int max = GETRF_BATCH_NUM_INTERVALS_REAL;
+            blk = size[get_index(intervals, max, dim)];
+        }
+        else
+        {
+            rocblas_int size[] = {GETRF_NPVT_BATCH_BLKSIZES_REAL};
+            rocblas_int intervals[] = {GETRF_NPVT_BATCH_INTERVALS_REAL};
+            rocblas_int max = GETRF_NPVT_BATCH_NUM_INTERVALS_REAL;
+            blk = size[get_index(intervals, max, dim)];
+        }
+    }
+    else
+    {
+        if(pivot)
+        {
+            rocblas_int size[] = {GETRF_BLKSIZES_REAL};
+            rocblas_int intervals[] = {GETRF_INTERVALS_REAL};
+            rocblas_int max = GETRF_NUM_INTERVALS_REAL;
+            blk = size[get_index(intervals, max, dim)];
+        }
+        else
+        {
+            rocblas_int size[] = {GETRF_NPVT_BLKSIZES_REAL};
+            rocblas_int intervals[] = {GETRF_NPVT_INTERVALS_REAL};
+            rocblas_int max = GETRF_NPVT_NUM_INTERVALS_REAL;
+            blk = size[get_index(intervals, max, dim)];
+        }
+    }
+
+    if(blk == 1 || blk == -1)
+        blk *= dim;
+
+    return blk;
+}
+
+/** Complex type version **/
+template <bool ISBATCHED, typename T, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
+rocblas_int getrf_get_blksize(rocblas_int dim, const bool pivot)
+{
+    rocblas_int blk;
+
+    if(ISBATCHED)
+    {
+        if(pivot)
+        {
+            rocblas_int size[] = {GETRF_BATCH_BLKSIZES_COMPLEX};
+            rocblas_int intervals[] = {GETRF_BATCH_INTERVALS_COMPLEX};
+            rocblas_int max = GETRF_BATCH_NUM_INTERVALS_COMPLEX;
+            blk = size[get_index(intervals, max, dim)];
+        }
+        else
+        {
+            rocblas_int size[] = {GETRF_NPVT_BATCH_BLKSIZES_COMPLEX};
+            rocblas_int intervals[] = {GETRF_NPVT_BATCH_INTERVALS_COMPLEX};
+            rocblas_int max = GETRF_NPVT_BATCH_NUM_INTERVALS_COMPLEX;
+            blk = size[get_index(intervals, max, dim)];
+        }
+    }
+    else
+    {
+        if(pivot)
+        {
+            rocblas_int size[] = {GETRF_BLKSIZES_COMPLEX};
+            rocblas_int intervals[] = {GETRF_INTERVALS_COMPLEX};
+            rocblas_int max = GETRF_NUM_INTERVALS_COMPLEX;
+            blk = size[get_index(intervals, max, dim)];
+        }
+        else
+        {
+            rocblas_int size[] = {GETRF_NPVT_BLKSIZES_COMPLEX};
+            rocblas_int intervals[] = {GETRF_NPVT_INTERVALS_COMPLEX};
+            rocblas_int max = GETRF_NPVT_NUM_INTERVALS_COMPLEX;
+            blk = size[get_index(intervals, max, dim)];
+        }
+    }
+
+    if(blk == 1 || blk == -1)
+        blk *= dim;
+
+    return blk;
+}
+
+/** This function returns the inner block size. This has been tuned based on
+    experiments with panel matrices; it is not expected to change a lot.
+    (not tunable by the user for now) **/
+template <bool ISBATCHED, typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
+rocblas_int getrf_get_innerBlkSize(rocblas_int m, rocblas_int n, const bool pivot)
+{
+    rocblas_int blk;
+
+    if(ISBATCHED)
+    {
+        if(pivot)
+        {
+            rocblas_int M = GETRF_BATCH_NUMROWS_REAL - 1;
+            rocblas_int N = GETRF_BATCH_NUMCOLS_REAL - 1;
+            rocblas_int intervalsM[] = {GETRF_BATCH_INTERVALSROW_REAL};
+            rocblas_int intervalsN[] = {GETRF_BATCH_INTERVALSCOL_REAL};
+            rocblas_int size[][GETRF_BATCH_NUMCOLS_REAL] = {GETRF_BATCH_INNBLKSIZES_REAL};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+        else
+        {
+            rocblas_int M = GETRF_NPVT_BATCH_NUMROWS_REAL - 1;
+            rocblas_int N = GETRF_NPVT_BATCH_NUMCOLS_REAL - 1;
+            rocblas_int intervalsM[] = {GETRF_NPVT_BATCH_INTERVALSROW_REAL};
+            rocblas_int intervalsN[] = {GETRF_NPVT_BATCH_INTERVALSCOL_REAL};
+            rocblas_int size[][GETRF_NPVT_BATCH_NUMCOLS_REAL] = {GETRF_NPVT_BATCH_INNBLKSIZES_REAL};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+    }
+    else
+    {
+        if(pivot)
+        {
+            rocblas_int M = GETRF_NUMROWS_REAL - 1;
+            rocblas_int N = GETRF_NUMCOLS_REAL - 1;
+            rocblas_int intervalsM[] = {GETRF_INTERVALSROW_REAL};
+            rocblas_int intervalsN[] = {GETRF_INTERVALSCOL_REAL};
+            rocblas_int size[][GETRF_NUMCOLS_REAL] = {GETRF_INNBLKSIZES_REAL};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+        else
+        {
+            rocblas_int M = GETRF_NPVT_NUMROWS_REAL - 1;
+            rocblas_int N = GETRF_NPVT_NUMCOLS_REAL - 1;
+            rocblas_int intervalsM[] = {GETRF_NPVT_INTERVALSROW_REAL};
+            rocblas_int intervalsN[] = {GETRF_NPVT_INTERVALSCOL_REAL};
+            rocblas_int size[][GETRF_NPVT_NUMCOLS_REAL] = {GETRF_NPVT_INNBLKSIZES_REAL};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+    }
+
+    if(blk == 1)
+        blk = n;
+
+    return blk;
+}
+
+/** complex type version **/
+template <bool ISBATCHED, typename T, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
+rocblas_int getrf_get_innerBlkSize(rocblas_int m, rocblas_int n, const bool pivot)
+{
+    rocblas_int blk;
+
+    if(ISBATCHED)
+    {
+        if(pivot)
+        {
+            rocblas_int M = GETRF_BATCH_NUMROWS_COMPLEX - 1;
+            rocblas_int N = GETRF_BATCH_NUMCOLS_COMPLEX - 1;
+            rocblas_int intervalsM[] = {GETRF_BATCH_INTERVALSROW_COMPLEX};
+            rocblas_int intervalsN[] = {GETRF_BATCH_INTERVALSCOL_COMPLEX};
+            rocblas_int size[][GETRF_BATCH_NUMCOLS_COMPLEX] = {GETRF_BATCH_INNBLKSIZES_COMPLEX};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+        else
+        {
+            rocblas_int M = GETRF_NPVT_BATCH_NUMROWS_COMPLEX - 1;
+            rocblas_int N = GETRF_NPVT_BATCH_NUMCOLS_COMPLEX - 1;
+            rocblas_int intervalsM[] = {GETRF_NPVT_BATCH_INTERVALSROW_COMPLEX};
+            rocblas_int intervalsN[] = {GETRF_NPVT_BATCH_INTERVALSCOL_COMPLEX};
+            rocblas_int size[][GETRF_NPVT_BATCH_NUMCOLS_COMPLEX]
+                = {GETRF_NPVT_BATCH_INNBLKSIZES_COMPLEX};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+    }
+    else
+    {
+        if(pivot)
+        {
+            rocblas_int M = GETRF_NUMROWS_COMPLEX - 1;
+            rocblas_int N = GETRF_NUMCOLS_COMPLEX - 1;
+            rocblas_int intervalsM[] = {GETRF_INTERVALSROW_COMPLEX};
+            rocblas_int intervalsN[] = {GETRF_INTERVALSCOL_COMPLEX};
+            rocblas_int size[][GETRF_NUMCOLS_COMPLEX] = {GETRF_INNBLKSIZES_COMPLEX};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+        else
+        {
+            rocblas_int M = GETRF_NPVT_NUMROWS_COMPLEX - 1;
+            rocblas_int N = GETRF_NPVT_NUMCOLS_COMPLEX - 1;
+            rocblas_int intervalsM[] = {GETRF_NPVT_INTERVALSROW_COMPLEX};
+            rocblas_int intervalsN[] = {GETRF_NPVT_INTERVALSCOL_COMPLEX};
+            rocblas_int size[][GETRF_NPVT_NUMCOLS_COMPLEX] = {GETRF_NPVT_INNBLKSIZES_COMPLEX};
+            blk = size[get_index(intervalsM, M, m)][get_index(intervalsN, N, n)];
+        }
+    }
+
+    if(blk == 1)
+        blk = n;
+
+    return blk;
+}
 
 // number of threads for the iamax reduction kernel
 #define IAMAX_THDS 1024
@@ -535,7 +902,8 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
                                         const bool pivot,
                                         const rocblas_int offset = 0,
                                         rocblas_int* permut_idx = nullptr,
-                                        const rocblas_stride stridePI = 0)
+                                        const rocblas_stride stridePI = 0,
+                                        const bool self_call = false)
 {
     ROCSOLVER_ENTER("getf2", "m:", m, "n:", n, "shiftA:", shiftA, "lda:", lda, "shiftP:", shiftP,
                     "bc:", batch_count);
@@ -591,6 +959,14 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
     }
 #endif
 
+    // size of outer blocks
+    rocblas_int blk = getrf_get_blksize<ISBATCHED, T>(dim, pivot);
+
+    bool printing = false;
+    const char* outfolder;
+    if(self_call && (outfolder = std::getenv("GETF2_OUT_FOLDER")) != nullptr)
+        printing = true;
+
     // everything must be executed with scalars on the device
     rocblas_pointer_mode old_mode;
     rocblas_get_pointer_mode(handle, &old_mode);
@@ -606,6 +982,7 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
     rocblas_int c, mm, nn;
     rocblas_int sger_thds_x, sger_thds_y;
 
+    rocblas_int iter = 0;
     for(rocblas_int j = 0; j < dim; ++j)
     {
         if(pivot)
@@ -656,6 +1033,22 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
                                    strideA, batch_count, sger_thds_x, sger_thds_y);
         }
 #endif
+
+        if(printing && j % blk == 0)
+        {
+            rocblas_int jb = min(dim - j, blk);
+
+            std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
+            std::cout << "Printing " << filename << "... ";
+
+            std::ofstream file;
+            file.open(filename);
+            print_device_matrix(file, "Column block", m - j, jb, A + shiftA + idx2D(j, j, lda), lda);
+            file.close();
+
+            std::cout << "Done!" << std::endl;
+            iter++;
+        }
     }
 
     rocblas_set_pointer_mode(handle, old_mode);

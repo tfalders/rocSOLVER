@@ -1,5 +1,5 @@
 /* ************************************************************************
- * Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
  * ************************************************************************ */
 
 #include "roclapack_getf2.hpp"
@@ -65,7 +65,7 @@ rocblas_status rocsolver_getf2_impl(rocblas_handle handle,
     // execution
     return rocsolver_getf2_template<false, T>(handle, m, n, A, shiftA, lda, strideA, ipiv, shiftP,
                                               strideP, info, batch_count, (T*)scalars, (T*)pivotval,
-                                              (rocblas_int*)pivotidx, pivot);
+                                              (rocblas_int*)pivotidx, pivot, 0, nullptr, 0, true);
 }
 
 /*
