@@ -1034,21 +1034,52 @@ rocblas_status rocsolver_getf2_template(rocblas_handle handle,
         }
 #endif
 
-        if(printing && ((j > 0 && j % blk == 0) || j == dim - 1))
+        if(printing && ((j + 1) % blk == 0 || j == dim - 1))
         {
             rocblas_int jj = iter * blk;
             rocblas_int jb = min(dim - jj, blk);
 
-            std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
-            std::cout << fmt::format("Printing {} at j={}...", filename, jj);
+            std::string cfilename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
+            std::cout << fmt::format("Printing {} at j={}...", cfilename, jj);
 
-            std::ofstream file;
-            file.open(filename);
-            print_device_matrix(file, "Column block", m - jj, jb, A + shiftA + idx2D(jj, jj, lda),
+            std::ofstream cfile;
+            cfile.open(cfilename);
+            print_device_matrix(cfile, "Column block", m - jj, jb, A + shiftA + idx2D(jj, jj, lda),
                                 lda);
-            file.close();
+            cfile.close();
 
             std::cout << "Done!" << std::endl;
+
+            rocblas_int nextpiv = jj + jb; //position for the matrix update
+            mm = m - nextpiv; //size for the matrix update
+            nn = n - nextpiv; //size for the matrix update
+            if(nextpiv < n)
+            {
+                std::string rfilename = fmt::format("{}/blkR_{}.txt", outfolder, iter);
+                std::cout << fmt::format("Printing {} at j={}...", rfilename, jj);
+
+                std::ofstream rfile;
+                rfile.open(rfilename);
+                print_device_matrix(rfile, "Row block", jb, nn,
+                                    A + shiftA + idx2D(jj, nextpiv, lda), lda);
+                rfile.close();
+
+                std::cout << "Done!" << std::endl;
+
+                if(nextpiv < m)
+                {
+                    std::string tfilename = fmt::format("{}/trm_{}.txt", outfolder, iter);
+                    std::cout << fmt::format("Printing {} at j={}...", tfilename, jj);
+
+                    std::ofstream tfile;
+                    tfile.open(tfilename);
+                    print_device_matrix(tfile, "Trailing matrix", mm, nn,
+                                        A + shiftA + idx2D(nextpiv, nextpiv, lda), lda);
+                    tfile.close();
+
+                    std::cout << "Done!" << std::endl;
+                }
+            }
             iter++;
         }
     }
