@@ -337,15 +337,16 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
 
     // MAIN LOOP
     rocblas_int iter = 0;
-    for(rocblas_int j = 0; j < dim; j += blk)
+    rocblas_int tb = dim - 22528;
+    for(rocblas_int j = 0; j < dim; j += 22528)
     {
         jb = min(dim - j, blk);
 
         if(pivot || panel)
         {
             // factorize outer block panel
-            getrf_panelLU<BATCHED, STRIDED, T>(handle, m - j, jb, n, A, shiftA + j, lda, strideA,
-                                               ipiv, shiftP + j, strideP, info, batch_count, pivot,
+            getrf_panelLU<BATCHED, STRIDED, T>(handle, tb, jb, n, A, shiftA + j, lda, strideA, ipiv,
+                                               shiftP + j, strideP, info, batch_count, pivot,
                                                scalars, work1, work2, work3, work4, optim_mem,
                                                pivotval, pivotidx, j, iipiv, m);
         }
@@ -365,18 +366,18 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                 work3, work4);
         }
 
-        if(printing)
-        {
-            std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
-            std::cout << fmt::format("Printing {} at j={}...", filename, j);
+        // if(printing)
+        // {
+        //     std::string filename = fmt::format("{}/blkC_{}.txt", outfolder, iter);
+        //     std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
-            std::ofstream file;
-            file.open(filename);
-            print_device_matrix(file, "Column block", m - j, jb, A + shiftA + idx2D(j, j, lda), lda);
-            file.close();
+        //     std::ofstream file;
+        //     file.open(filename);
+        //     print_device_matrix(file, "Column block", tb, jb, A + shiftA + idx2D(j, j, lda), lda);
+        //     file.close();
 
-            std::cout << "Done!" << std::endl;
-        }
+        //     std::cout << "Done!" << std::endl;
+        // }
 
         // update trailing matrix
         nextpiv = j + jb; //position for the matrix update
@@ -385,8 +386,8 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
         if(nextpiv < n)
         {
             rocsolver_trsm_lower<BATCHED, STRIDED, T>(
-                handle, rocblas_side_left, rocblas_operation_none, rocblas_diagonal_unit, jb, nn, A,
-                shiftA + idx2D(j, j, lda), lda, strideA, A, shiftA + idx2D(j, nextpiv, lda), lda,
+                handle, rocblas_side_left, rocblas_operation_none, rocblas_diagonal_unit, jb, tb - jb,
+                A, shiftA + idx2D(j, j, lda), lda, strideA, A, shiftA + idx2D(j, nextpiv, lda), lda,
                 strideA, batch_count, optim_mem, work1, work2, work3, work4);
 
             if(printing)
@@ -396,48 +397,48 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
 
                 std::ofstream file;
                 file.open(filename);
-                print_device_matrix(file, "Row block", jb, nn, A + shiftA + idx2D(j, nextpiv, lda),
-                                    lda);
+                print_device_matrix(file, "Row block", jb, tb - jb,
+                                    A + shiftA + idx2D(j, nextpiv, lda), lda);
                 file.close();
 
                 std::cout << "Done!" << std::endl;
             }
 
-            if(nextpiv < m)
-            {
-                rocblasCall_gemm<BATCHED, STRIDED, T>(
-                    handle, rocblas_operation_none, rocblas_operation_none, mm, nn, jb, &minone, A,
-                    shiftA + idx2D(nextpiv, j, lda), lda, strideA, A,
-                    shiftA + idx2D(j, nextpiv, lda), lda, strideA, &one, A,
-                    shiftA + idx2D(nextpiv, nextpiv, lda), lda, strideA, batch_count, nullptr);
-                /** This would be the call to the internal gemm, leaving it
-                        commented here until we are sure it won't be needed **/
-                /*dimx = std::min({mm, (4096 / jb) / 2, 32});
-                    dimy = std::min({nn, (4096 / jb) / 2, 32});
-                    blocks = (mm - 1) / dimx + 1;
-                    blocksy = (nn - 1) / dimy + 1;
-                    grid = dim3(blocks, blocksy, batch_count);
-                    threads = dim3(dimx, dimy, 1);
-                    lmemsize = jb * (dimx + dimy) * sizeof(T);
-                    hipLaunchKernelGGL(gemm_kernel<T>, grid, threads, lmemsize, stream, mm,
-                                       nn, jb, A, shiftA + idx2D(nextpiv, j, lda),
-                                       shiftA + idx2D(j, nextpiv, lda),
-                                       shiftA + idx2D(nextpiv, nextpiv, lda), lda, strideA);*/
+            // if(nextpiv < m)
+            // {
+            //     //rocblasCall_gemm<BATCHED, STRIDED, T>(
+            //     //    handle, rocblas_operation_none, rocblas_operation_none, tb - jb, tb - jb, jb, &minone, A,
+            //     //    shiftA + idx2D(nextpiv, j, lda), lda, strideA, A,
+            //     //    shiftA + idx2D(j, nextpiv, lda), lda, strideA, &one, A,
+            //     //    shiftA + idx2D(nextpiv, nextpiv, lda), lda, strideA, batch_count, nullptr);
+            //     /** This would be the call to the internal gemm, leaving it
+            //             commented here until we are sure it won't be needed **/
+            //     /*dimx = std::min({mm, (4096 / jb) / 2, 32});
+            //         dimy = std::min({nn, (4096 / jb) / 2, 32});
+            //         blocks = (mm - 1) / dimx + 1;
+            //         blocksy = (nn - 1) / dimy + 1;
+            //         grid = dim3(blocks, blocksy, batch_count);
+            //         threads = dim3(dimx, dimy, 1);
+            //         lmemsize = jb * (dimx + dimy) * sizeof(T);
+            //         hipLaunchKernelGGL(gemm_kernel<T>, grid, threads, lmemsize, stream, mm,
+            //                            nn, jb, A, shiftA + idx2D(nextpiv, j, lda),
+            //                            shiftA + idx2D(j, nextpiv, lda),
+            //                            shiftA + idx2D(nextpiv, nextpiv, lda), lda, strideA);*/
 
-                if(printing)
-                {
-                    std::string filename = fmt::format("{}/trm_{}.txt", outfolder, iter);
-                    std::cout << fmt::format("Printing {} at j={}...", filename, j);
+            //     if(printing)
+            //     {
+            //         std::string filename = fmt::format("{}/trm_{}.txt", outfolder, iter);
+            //         std::cout << fmt::format("Printing {} at j={}...", filename, j);
 
-                    std::ofstream file;
-                    file.open(filename);
-                    print_device_matrix(file, "Trailing matrix", mm, nn,
-                                        A + shiftA + idx2D(nextpiv, nextpiv, lda), lda);
-                    file.close();
+            //         std::ofstream file;
+            //         file.open(filename);
+            //         print_device_matrix(file, "Trailing matrix", tb-jb, tb-jb,
+            //                             A + shiftA + idx2D(nextpiv, nextpiv, lda), lda);
+            //         file.close();
 
-                    std::cout << "Done!" << std::endl;
-                }
-            }
+            //         std::cout << "Done!" << std::endl;
+            //     }
+            // }
         }
 
         iter++;

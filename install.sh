@@ -569,8 +569,8 @@ if [[ "${build_sanitizer}" == true ]]; then
 fi
 
 if [[ "${build_clients}" == true ]]; then
-  cmake_client_options+=('-DBUILD_CLIENTS_TESTS=ON' '-DBUILD_CLIENTS_BENCHMARKS=ON' '-DBUILD_CLIENTS_SAMPLES=ON')
-  cmake_client_options+=('-DBUILD_TESTING=ON' '-DBUILD_CLIENTS_EXTRA_TESTS=ON')
+  cmake_client_options+=('-DBUILD_CLIENTS_TESTS=ON' '-DBUILD_CLIENTS_BENCHMARKS=OFF' '-DBUILD_CLIENTS_SAMPLES=OFF')
+  cmake_client_options+=('-DBUILD_TESTING=ON' '-DBUILD_CLIENTS_EXTRA_TESTS=OFF')
 fi
 
 if [[ "${build_library}" == false ]]; then
