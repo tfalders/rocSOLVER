@@ -110,6 +110,8 @@ void testing_getf2_getrf_bad_arg()
     }
 }
 
+#define LARGE_IDX 22528
+
 template <bool CPU, bool GPU, typename T, typename Td, typename Ud, typename Th, typename Uh>
 void getf2_getrf_initData(const rocblas_handle handle,
                           const rocblas_int m,
@@ -177,11 +179,11 @@ void getf2_getrf_initData(const rocblas_handle handle,
                     hA[b][i + j * lda] = 0;
             }
 
-            for(rocblas_int i = 22528; i < m; i++)
+            for(rocblas_int i = LARGE_IDX; i < m; i++)
             {
-                for(rocblas_int j = 22528; j < n; j++)
+                for(rocblas_int j = LARGE_IDX; j < n; j++)
                 {
-                    hA[b][i + j * lda] = hA[b][(i - 22528) + (j - 22528) * lda];
+                    hA[b][i + j * lda] = hA[b][(i - LARGE_IDX) + (j - LARGE_IDX) * lda];
                 }
             }
         }
@@ -226,9 +228,9 @@ void getf2_getrf_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hIpivRes.transfer_from(dIpiv));
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
-    rocblas_int tb = min(m, n) - 22528;
+    rocblas_int tb = min(m, n) - LARGE_IDX;
     rocblas_int jb = 256;
-    rocblas_int j = 22528;
+    rocblas_int j = LARGE_IDX;
     rocblas_int nextpiv = j + jb;
 
     // // CPU lapack

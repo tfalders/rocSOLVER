@@ -12,6 +12,8 @@ using ::testing::Values;
 using ::testing::ValuesIn;
 using namespace std;
 
+#define LARGE_SIZE 23301
+
 typedef std::tuple<vector<int>, int> getrf_tuple;
 
 // each matrix_size_range vector is a {m, lda, singular}
@@ -22,11 +24,11 @@ typedef std::tuple<vector<int>, int> getrf_tuple;
 
 // for checkin_lapack tests
 const vector<vector<int>> matrix_size_range = {
-    {23301, 23301, 0},
+    {LARGE_SIZE, LARGE_SIZE, 0},
 };
 
 const vector<int> n_size_range = {
-    23301,
+    LARGE_SIZE,
 };
 
 // for daily_lapack tests

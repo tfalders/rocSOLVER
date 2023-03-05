@@ -252,6 +252,8 @@ void rocsolver_getrf_getMemorySize(const rocblas_int m,
     }
 }
 
+#define LARGE_IDX 22528
+
 template <bool BATCHED, bool STRIDED, typename T, typename U>
 rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                                         const rocblas_int m,
@@ -337,8 +339,8 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
 
     // MAIN LOOP
     rocblas_int iter = 0;
-    rocblas_int tb = dim - 22528;
-    for(rocblas_int j = 0; j < dim; j += 22528)
+    rocblas_int tb = dim - LARGE_IDX;
+    for(rocblas_int j = 0; j < dim; j += LARGE_IDX)
     {
         jb = min(dim - j, blk);
 
