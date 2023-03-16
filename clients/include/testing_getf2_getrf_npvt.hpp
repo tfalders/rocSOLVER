@@ -283,7 +283,7 @@ void getf2_getrf_npvt_getPerfData(const rocblas_handle handle,
                                               singular);
 
     // cold calls
-    for(int iter = 0; iter < 1; iter++)
+    for(int iter = 0; iter < 2; iter++)
     {
         getf2_getrf_npvt_initData<false, true, T>(handle, m, n, dA, lda, stA, dinfo, bc, hA, hinfo,
                                                   singular);
@@ -306,7 +306,7 @@ void getf2_getrf_npvt_getPerfData(const rocblas_handle handle,
             rocsolver_log_set_layer_mode(rocblas_layer_mode_log_profile);
         rocsolver_log_set_max_levels(profile);
     }
-    for(rocblas_int iter = 0; iter < 1; iter++)
+    for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
         getf2_getrf_npvt_initData<false, true, T>(handle, m, n, dA, lda, stA, dinfo, bc, hA, hinfo,
                                                   singular);
@@ -316,7 +316,7 @@ void getf2_getrf_npvt_getPerfData(const rocblas_handle handle,
                                    bc);
         *gpu_time_used += get_time_us_sync(stream) - start;
     }
-    *gpu_time_used /= 1;
+    *gpu_time_used /= hot_calls;
 }
 
 template <bool BATCHED, bool STRIDED, bool GETRF, typename T>
