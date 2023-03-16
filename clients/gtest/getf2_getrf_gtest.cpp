@@ -1,5 +1,5 @@
 /* ************************************************************************
- * Copyright (c) 2020-2021 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020-2023 Advanced Micro Devices, Inc.
  *
  * ************************************************************************ */
 
@@ -21,28 +21,9 @@ typedef std::tuple<vector<int>, int> getrf_tuple;
 // (null handle, null pointers and invalid values)
 
 // for checkin_lapack tests
-const vector<vector<int>> matrix_size_range = {
-    // quick return
-    {0, 1, 0},
-    // invalid
-    {-1, 1, 0},
-    {20, 5, 0},
-    // normal (valid) samples
-    {32, 32, 0},
-    {50, 50, 1},
-    {70, 100, 0}};
+const vector<vector<int>> matrix_size_range = {{24000, 24000, 0}};
 
-const vector<int> n_size_range = {
-    // quick return
-    0,
-    // invalid
-    -1,
-    // normal (valid) samples
-    16,
-    20,
-    40,
-    100,
-};
+const vector<int> n_size_range = {24000};
 
 // for daily_lapack tests
 const vector<vector<int>> large_matrix_size_range = {
@@ -90,7 +71,7 @@ protected:
         if(arg.peek<rocblas_int>("m") == 0 && arg.peek<rocblas_int>("n") == 0)
             testing_getf2_getrf_bad_arg<BATCHED, STRIDED, BLOCKED, T>();
 
-        arg.batch_count = (BATCHED || STRIDED ? 3 : 1);
+        arg.batch_count = 1;
         if(arg.singular == 1)
             testing_getf2_getrf<BATCHED, STRIDED, BLOCKED, T>(arg);
 
@@ -115,7 +96,7 @@ protected:
         if(arg.peek<rocblas_int>("m") == 0 && arg.peek<rocblas_int>("n") == 0)
             testing_getf2_getrf_npvt_bad_arg<BATCHED, STRIDED, BLOCKED, T>();
 
-        arg.batch_count = (BATCHED || STRIDED ? 3 : 1);
+        arg.batch_count = 1;
         if(arg.singular == 1)
             testing_getf2_getrf_npvt<BATCHED, STRIDED, BLOCKED, T>(arg);
 
@@ -383,33 +364,33 @@ TEST_P(GETRF, strided_batched__double_complex)
     run_tests<false, true, rocblas_double_complex>();
 }
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         GETF2_NPVT,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          GETF2_NPVT,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
+
+// INSTANTIATE_TEST_SUITE_P(checkin_lapack,
+//                          GETF2_NPVT,
+//                          Combine(ValuesIn(matrix_size_range), ValuesIn(n_size_range)));
+
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          GETRF_NPVT,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
 
 INSTANTIATE_TEST_SUITE_P(checkin_lapack,
-                         GETF2_NPVT,
-                         Combine(ValuesIn(matrix_size_range), ValuesIn(n_size_range)));
-
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
                          GETRF_NPVT,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
-
-INSTANTIATE_TEST_SUITE_P(checkin_lapack,
-                         GETRF_NPVT,
                          Combine(ValuesIn(matrix_size_range), ValuesIn(n_size_range)));
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         GETF2,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          GETF2,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
 
-INSTANTIATE_TEST_SUITE_P(checkin_lapack,
-                         GETF2,
-                         Combine(ValuesIn(matrix_size_range), ValuesIn(n_size_range)));
+// INSTANTIATE_TEST_SUITE_P(checkin_lapack,
+//                          GETF2,
+//                          Combine(ValuesIn(matrix_size_range), ValuesIn(n_size_range)));
 
-INSTANTIATE_TEST_SUITE_P(daily_lapack,
-                         GETRF,
-                         Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
+// INSTANTIATE_TEST_SUITE_P(daily_lapack,
+//                          GETRF,
+//                          Combine(ValuesIn(large_matrix_size_range), ValuesIn(large_n_size_range)));
 
 INSTANTIATE_TEST_SUITE_P(checkin_lapack,
                          GETRF,

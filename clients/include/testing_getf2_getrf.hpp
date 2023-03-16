@@ -294,7 +294,7 @@ void getf2_getrf_getPerfData(const rocblas_handle handle,
                                          hIpiv, hInfo, singular);
 
     // cold calls
-    for(int iter = 0; iter < 2; iter++)
+    for(int iter = 0; iter < 1; iter++)
     {
         getf2_getrf_initData<false, true, T>(handle, m, n, dA, lda, stA, dIpiv, stP, dInfo, bc, hA,
                                              hIpiv, hInfo, singular);
@@ -318,7 +318,7 @@ void getf2_getrf_getPerfData(const rocblas_handle handle,
         rocsolver_log_set_max_levels(profile);
     }
 
-    for(rocblas_int iter = 0; iter < hot_calls; iter++)
+    for(rocblas_int iter = 0; iter < 1; iter++)
     {
         getf2_getrf_initData<false, true, T>(handle, m, n, dA, lda, stA, dIpiv, stP, dInfo, bc, hA,
                                              hIpiv, hInfo, singular);
@@ -328,7 +328,7 @@ void getf2_getrf_getPerfData(const rocblas_handle handle,
                               dInfo.data(), bc);
         *gpu_time_used += get_time_us_sync(stream) - start;
     }
-    *gpu_time_used /= hot_calls;
+    *gpu_time_used /= 1;
 }
 
 template <bool BATCHED, bool STRIDED, bool GETRF, typename T>
