@@ -71,7 +71,7 @@ protected:
         if(arg.peek<rocblas_int>("m") == 0 && arg.peek<rocblas_int>("n") == 0)
             testing_getf2_getrf_bad_arg<BATCHED, STRIDED, BLOCKED, T>();
 
-        arg.batch_count = 1;
+        arg.batch_count = BATCHED ? 2 : 1;
         if(arg.singular == 1)
             testing_getf2_getrf<BATCHED, STRIDED, BLOCKED, T>(arg);
 
@@ -96,7 +96,7 @@ protected:
         if(arg.peek<rocblas_int>("m") == 0 && arg.peek<rocblas_int>("n") == 0)
             testing_getf2_getrf_npvt_bad_arg<BATCHED, STRIDED, BLOCKED, T>();
 
-        arg.batch_count = 1;
+        arg.batch_count = BATCHED ? 2 : 1;
         if(arg.singular == 1)
             testing_getf2_getrf_npvt<BATCHED, STRIDED, BLOCKED, T>(arg);
 
