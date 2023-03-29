@@ -42,12 +42,6 @@ constexpr auto rocblas2string_status(rocblas_status status)
         if(_status != rocblas_status_success) \
             return _status;                   \
     }
-#define THROW_IF_ROCBLAS_ERROR(fcn)           \
-    {                                         \
-        rocblas_status _status = (fcn);       \
-        if(_status != rocblas_status_success) \
-            throw _status;                    \
-    }
 
 template <typename T>
 struct rocblas_index_value_t;

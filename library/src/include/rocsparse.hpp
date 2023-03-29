@@ -51,12 +51,6 @@ constexpr auto rocsparse2rocblas_status(rocsparse_status status)
         if(_status != rocsparse_status_success)       \
             return rocsparse2rocblas_status(_status); \
     }
-#define THROW_IF_ROCSPARSE_ERROR(fcn)                \
-    {                                                \
-        rocsparse_status _status = (fcn);            \
-        if(_status != rocsparse_status_success)      \
-            throw rocsparse2rocblas_status(_status); \
-    }
 
 // csrilu0 buffer
 inline rocsparse_status rocsparseCall_csrilu0_buffer_size(rocsparse_handle sphandle,
