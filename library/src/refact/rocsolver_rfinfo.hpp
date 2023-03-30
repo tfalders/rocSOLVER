@@ -63,43 +63,54 @@ struct rocsolver_rfinfo_
         return rocblas_status_success;
     }
 
-    void destroy()
+    rocblas_status destroy()
     {
+        int nerrors = 0;
+
         if(sphandle != nullptr)
         {
-            rocsparse_destroy_handle(sphandle);
+            if(rocsparse_destroy_handle(sphandle) != rocsparse_status_success)
+                nerrors++;
             sphandle = nullptr;
         }
         if(descrL != nullptr)
         {
-            rocsparse_destroy_mat_descr(descrL);
+            if(rocsparse_destroy_mat_descr(descrL) != rocsparse_status_success)
+                nerrors++;
             descrL = nullptr;
         }
         if(descrU != nullptr)
         {
-            rocsparse_destroy_mat_descr(descrU);
+            if(rocsparse_destroy_mat_descr(descrU) != rocsparse_status_success)
+                nerrors++;
             descrU = nullptr;
         }
         if(descrT != nullptr)
         {
-            rocsparse_destroy_mat_descr(descrT);
+            if(rocsparse_destroy_mat_descr(descrT) != rocsparse_status_success)
+                nerrors++;
             descrT = nullptr;
         }
         if(infoL != nullptr)
         {
-            rocsparse_destroy_mat_info(infoL);
+            if(rocsparse_destroy_mat_info(infoL) != rocsparse_status_success)
+                nerrors++;
             infoL = nullptr;
         }
         if(infoU != nullptr)
         {
-            rocsparse_destroy_mat_info(infoU);
+            if(rocsparse_destroy_mat_info(infoU) != rocsparse_status_success)
+                nerrors++;
             infoU = nullptr;
         }
         if(infoT != nullptr)
         {
-            rocsparse_destroy_mat_info(infoT);
+            if(rocsparse_destroy_mat_info(infoT) != rocsparse_status_success)
+                nerrors++;
             infoT = nullptr;
         }
+
+        return (nerrors == 0 ? rocblas_status_success : rocblas_status_internal_error);
     }
 };
 typedef struct rocsolver_rfinfo_* rocsolver_rfinfo;

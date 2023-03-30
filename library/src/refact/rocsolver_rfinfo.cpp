@@ -45,10 +45,10 @@ extern "C" rocblas_status rocsolver_destroy_rfinfo(rocsolver_rfinfo rfinfo)
     if(rfinfo == nullptr)
         return rocblas_status_invalid_pointer;
 
-    (*rfinfo).destroy();
+    rocblas_status status = (*rfinfo).destroy();
     delete rfinfo;
 
-    return rocblas_status_success;
+    return status;
 #else
     return rocblas_status_not_implemented;
 #endif
