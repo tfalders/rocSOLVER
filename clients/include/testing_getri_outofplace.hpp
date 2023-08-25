@@ -232,7 +232,7 @@ void getri_outofplace_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
     // CPU lapack
-    rocblas_int j = 912;
+    rocblas_int j = 864;
     rocblas_int nextpiv = j + 48;
     std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda) << ' '
               << (n - nextpiv) << std::endl;
