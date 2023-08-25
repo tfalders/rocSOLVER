@@ -121,16 +121,16 @@ rocblas_status rocsolver_getrs_template(rocblas_handle handle,
 
     if(trans == rocblas_operation_none)
     {
-        // first apply row interchanges to the right hand sides
-        if(pivot)
-            rocsolver_laswp_template<T>(handle, nrhs, B, shiftB, incb, ldb, strideB, 1, n, ipiv, 0,
-                                        1, strideP, batch_count);
+        // // first apply row interchanges to the right hand sides
+        // if(pivot)
+        //     rocsolver_laswp_template<T>(handle, nrhs, B, shiftB, incb, ldb, strideB, 1, n, ipiv, 0,
+        //                                 1, strideP, batch_count);
 
-        // solve L*X = B, overwriting B with X
-        rocsolver_trsm_lower<BATCHED, STRIDED, T>(handle, rocblas_side_left, trans,
-                                                  rocblas_diagonal_unit, n, nrhs, A, shiftA, inca,
-                                                  lda, strideA, B, shiftB, incb, ldb, strideB,
-                                                  batch_count, optim_mem, work1, work2, work3, work4);
+        // // solve L*X = B, overwriting B with X
+        // rocsolver_trsm_lower<BATCHED, STRIDED, T>(handle, rocblas_side_left, trans,
+        //                                           rocblas_diagonal_unit, n, nrhs, A, shiftA, inca,
+        //                                           lda, strideA, B, shiftB, incb, ldb, strideB,
+        //                                           batch_count, optim_mem, work1, work2, work3, work4);
 
         // solve U*X = B, overwriting B with X
         rocsolver_trsm_upper<BATCHED, STRIDED, T>(handle, rocblas_side_left, trans,
@@ -146,16 +146,16 @@ rocblas_status rocsolver_getrs_template(rocblas_handle handle,
                                                   inca, lda, strideA, B, shiftB, incb, ldb, strideB,
                                                   batch_count, optim_mem, work1, work2, work3, work4);
 
-        // solve L'*X = B, or L**H *X = B overwriting B with X
-        rocsolver_trsm_lower<BATCHED, STRIDED, T>(handle, rocblas_side_left, trans,
-                                                  rocblas_diagonal_unit, n, nrhs, A, shiftA, inca,
-                                                  lda, strideA, B, shiftB, incb, ldb, strideB,
-                                                  batch_count, optim_mem, work1, work2, work3, work4);
+        // // solve L'*X = B, or L**H *X = B overwriting B with X
+        // rocsolver_trsm_lower<BATCHED, STRIDED, T>(handle, rocblas_side_left, trans,
+        //                                           rocblas_diagonal_unit, n, nrhs, A, shiftA, inca,
+        //                                           lda, strideA, B, shiftB, incb, ldb, strideB,
+        //                                           batch_count, optim_mem, work1, work2, work3, work4);
 
-        // then apply row interchanges to the solution vectors
-        if(pivot)
-            rocsolver_laswp_template<T>(handle, nrhs, B, shiftB, incb, ldb, strideB, 1, n, ipiv, 0,
-                                        -1, strideP, batch_count);
+        // // then apply row interchanges to the solution vectors
+        // if(pivot)
+        //     rocsolver_laswp_template<T>(handle, nrhs, B, shiftB, incb, ldb, strideB, 1, n, ipiv, 0,
+        //                                 -1, strideP, batch_count);
     }
 
     rocblas_set_pointer_mode(handle, old_mode);

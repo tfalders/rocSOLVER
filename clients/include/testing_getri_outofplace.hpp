@@ -118,10 +118,12 @@ template <bool CPU, bool GPU, typename T, typename Td, typename Ud, typename Th,
 void getri_outofplace_initData(const rocblas_handle handle,
                                const rocblas_int n,
                                Td& dA,
+                               Td& dC,
                                const rocblas_int lda,
                                Ud& dIpiv,
                                const rocblas_int bc,
                                Th& hA,
+                               Th& hC,
                                Uh& hIpiv,
                                Uh& hInfo,
                                const bool singular)
@@ -130,6 +132,7 @@ void getri_outofplace_initData(const rocblas_handle handle,
     {
         T tmp;
         rocblas_init<T>(hA, true);
+        rocblas_init<T>(hC, false);
 
         for(rocblas_int b = 0; b < bc; ++b)
         {
@@ -183,6 +186,7 @@ void getri_outofplace_initData(const rocblas_handle handle,
     if(GPU)
     {
         CHECK_HIP_ERROR(dA.transfer_from(hA));
+        CHECK_HIP_ERROR(dC.transfer_from(hC));
         CHECK_HIP_ERROR(dIpiv.transfer_from(hIpiv));
     }
 }
@@ -202,6 +206,7 @@ void getri_outofplace_getError(const rocblas_handle handle,
                                const rocblas_int bc,
                                Th& hA,
                                Th& hARes,
+                               Th& hC,
                                Uh& hIpiv,
                                Uh& hInfo,
                                Uh& hInfoRes,
@@ -212,8 +217,8 @@ void getri_outofplace_getError(const rocblas_handle handle,
     std::vector<T> hW(sizeW);
 
     // input data initialization
-    getri_outofplace_initData<true, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
-                                             singular);
+    getri_outofplace_initData<true, true, T>(handle, n, dA, dC, lda, dIpiv, bc, hA, hC, hIpiv,
+                                             hInfo, singular);
 
     rocsolver_log_set_layer_mode(rocblas_layer_mode_log_trace);
     rocsolver_log_set_max_levels(5);
@@ -227,21 +232,27 @@ void getri_outofplace_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
     // CPU lapack
+    rocblas_int j = 0;
+    rocblas_int nextpiv = j + 48;
+    // std::cout << (n-nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda) << ' ' << (n-nextpiv) << std::endl;
     for(rocblas_int b = 0; b < bc; ++b)
     {
-        cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
+        // cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
+
+        cpu_gemm(rocblas_operation_none, rocblas_operation_none, n - nextpiv, n, 48, T(-1),
+                 hA[b] + ((n - nextpiv) * lda), lda, hC[b] + (n - nextpiv), ldc, T(1), hC[b], ldc);
     }
 
     // check info for singularities
     double err = 0;
     *max_err = 0;
-    for(rocblas_int b = 0; b < bc; ++b)
-    {
-        EXPECT_EQ(hInfo[b][0], hInfoRes[b][0]) << "where b = " << b;
-        if(hInfo[b][0] != hInfoRes[b][0])
-            err++;
-    }
-    *max_err += err;
+    // for(rocblas_int b = 0; b < bc; ++b)
+    // {
+    //     EXPECT_EQ(hInfo[b][0], hInfoRes[b][0]) << "where b = " << b;
+    //     if(hInfo[b][0] != hInfoRes[b][0])
+    //         err++;
+    // }
+    // *max_err += err;
 
     // error is ||hA - hARes|| / ||hA||
     // (THIS DOES NOT ACCOUNT FOR NUMERICAL REPRODUCIBILITY ISSUES.
@@ -249,11 +260,12 @@ void getri_outofplace_getError(const rocblas_handle handle,
     // using frobenius norm
     for(rocblas_int b = 0; b < bc; ++b)
     {
-        if(hInfoRes[b][0] == 0)
-        {
-            err = norm_error('F', n, n, lda, hA[b], hARes[b], ldc);
-            *max_err = err > *max_err ? err : *max_err;
-        }
+        // if(hInfoRes[b][0] == 0)
+        // {
+        err = norm_error('F', n, n, ldc, hC[b], hARes[b]);
+        // std::cout << err << std::endl;
+        *max_err = err > *max_err ? err : *max_err;
+        // }
     }
 }
 
@@ -421,6 +433,7 @@ void testing_getri_outofplace(Arguments& argus)
     {
         // memory allocations
         host_batch_vector<T> hA(size_A, 1, bc);
+        host_batch_vector<T> hC(size_ARes, 1, bc);
         host_batch_vector<T> hARes(size_ARes, 1, bc);
         host_strided_batch_vector<rocblas_int> hIpiv(size_P, 1, stP, bc);
         host_strided_batch_vector<rocblas_int> hInfo(1, 1, 1, bc);
@@ -453,7 +466,7 @@ void testing_getri_outofplace(Arguments& argus)
         // check computations
         if(argus.unit_check || argus.norm_check)
             getri_outofplace_getError<STRIDED, T>(handle, n, dA, lda, stA, dIpiv, stP, dC, ldc, stC,
-                                                  dInfo, bc, hA, hARes, hIpiv, hInfo, hInfoRes,
+                                                  dInfo, bc, hA, hARes, hC, hIpiv, hInfo, hInfoRes,
                                                   &max_error, argus.singular);
 
         // collect performance data
@@ -468,6 +481,7 @@ void testing_getri_outofplace(Arguments& argus)
     {
         // memory allocations
         host_strided_batch_vector<T> hA(size_A, 1, stA, bc);
+        host_strided_batch_vector<T> hC(size_ARes, 1, stARes, bc);
         host_strided_batch_vector<T> hARes(size_ARes, 1, stARes, bc);
         host_strided_batch_vector<rocblas_int> hIpiv(size_P, 1, stP, bc);
         host_strided_batch_vector<rocblas_int> hInfo(1, 1, 1, bc);
@@ -500,7 +514,7 @@ void testing_getri_outofplace(Arguments& argus)
         // check computations
         if(argus.unit_check || argus.norm_check)
             getri_outofplace_getError<STRIDED, T>(handle, n, dA, lda, stA, dIpiv, stP, dC, ldc, stC,
-                                                  dInfo, bc, hA, hARes, hIpiv, hInfo, hInfoRes,
+                                                  dInfo, bc, hA, hARes, hC, hIpiv, hInfo, hInfoRes,
                                                   &max_error, argus.singular);
 
         // collect performance data

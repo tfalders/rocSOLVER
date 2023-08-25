@@ -109,14 +109,14 @@ rocblas_status rocsolver_getri_outofplace_template(rocblas_handle handle,
         return rocblas_status_success;
     }
 
-    // check for singularities
-    ROCSOLVER_LAUNCH_KERNEL(check_singularity<T>, dim3(batch_count, 1, 1), dim3(1, BS1, 1), 0,
-                            stream, n, A, shiftA, lda, strideA, info);
+    // // check for singularities
+    // ROCSOLVER_LAUNCH_KERNEL(check_singularity<T>, dim3(batch_count, 1, 1), dim3(1, BS1, 1), 0,
+    //                         stream, n, A, shiftA, lda, strideA, info);
 
-    // initialize C to the identity
-    rocblas_int blocks = (n - 1) / BS2 + 1;
-    ROCSOLVER_LAUNCH_KERNEL(init_ident<T>, dim3(blocks, blocks, batch_count), dim3(BS2, BS2), 0,
-                            stream, n, n, C, shiftC, ldc, strideC);
+    // // initialize C to the identity
+    // rocblas_int blocks = (n - 1) / BS2 + 1;
+    // ROCSOLVER_LAUNCH_KERNEL(init_ident<T>, dim3(blocks, blocks, batch_count), dim3(BS2, BS2), 0,
+    //                         stream, n, n, C, shiftC, ldc, strideC);
 
     // compute inverse
     rocsolver_getrs_template<BATCHED, STRIDED, T>(
