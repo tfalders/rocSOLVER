@@ -1148,7 +1148,7 @@ void rocsolver_trsm_upper(rocblas_handle handle,
 
             //while(j < m - blk)
             {
-                j = 0;
+                j = 912;
                 nextpiv = j + blk;
 
                 // solve for current diagonal block

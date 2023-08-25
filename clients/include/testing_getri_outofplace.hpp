@@ -232,9 +232,10 @@ void getri_outofplace_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
     // CPU lapack
-    rocblas_int j = 0;
+    rocblas_int j = 912;
     rocblas_int nextpiv = j + 48;
-    // std::cout << (n-nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda) << ' ' << (n-nextpiv) << std::endl;
+    std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda) << ' '
+              << (n - nextpiv) << std::endl;
     for(rocblas_int b = 0; b < bc; ++b)
     {
         // cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
@@ -263,7 +264,7 @@ void getri_outofplace_getError(const rocblas_handle handle,
         // if(hInfoRes[b][0] == 0)
         // {
         err = norm_error('F', n, n, ldc, hC[b], hARes[b]);
-        // std::cout << err << std::endl;
+        std::cout << err << std::endl;
         *max_err = err > *max_err ? err : *max_err;
         // }
     }
