@@ -232,16 +232,23 @@ void getri_outofplace_getError(const rocblas_handle handle,
     CHECK_HIP_ERROR(hInfoRes.transfer_from(dInfo));
 
     // CPU lapack
-    rocblas_int j = 864;
-    rocblas_int nextpiv = j + 48;
-    std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda) << ' '
-              << (n - nextpiv) << std::endl;
     for(rocblas_int b = 0; b < bc; ++b)
     {
         // cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
 
-        cpu_gemm(rocblas_operation_none, rocblas_operation_none, n - nextpiv, n, 48, T(-1),
-                 hA[b] + ((n - nextpiv) * lda), lda, hC[b] + (n - nextpiv), ldc, T(1), hC[b], ldc);
+        rocblas_int j = 0;
+        while(j < n - 48)
+        {
+            rocblas_int nextpiv = j + 48;
+            cpu_gemm(rocblas_operation_none, rocblas_operation_none, n - nextpiv, n, 48, T(-1),
+                     hA[b] + ((n - nextpiv) * lda), lda, hC[b] + (n - nextpiv), ldc, T(1), hC[b],
+                     ldc);
+
+            std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda)
+                      << ' ' << (n - nextpiv) << std::endl;
+
+            j = nextpiv;
+        }
     }
 
     // check info for singularities
