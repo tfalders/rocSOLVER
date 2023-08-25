@@ -215,6 +215,9 @@ void getri_outofplace_getError(const rocblas_handle handle,
     getri_outofplace_initData<true, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
                                              singular);
 
+    rocsolver_log_set_layer_mode(rocblas_layer_mode_log_trace);
+    rocsolver_log_set_max_levels(5);
+
     // execute computations
     // GPU lapack
     CHECK_ROCBLAS_ERROR(rocsolver_getri_outofplace(STRIDED, handle, n, dA.data(), lda, stA,
@@ -278,63 +281,66 @@ void getri_outofplace_getPerfData(const rocblas_handle handle,
                                   const bool perf,
                                   const bool singular)
 {
-    rocblas_int sizeW = n;
-    std::vector<T> hW(sizeW);
+    *cpu_time_used = 0;
+    *gpu_time_used = 0;
 
-    if(!perf)
-    {
-        getri_outofplace_initData<true, false, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
-                                                  singular);
+    // rocblas_int sizeW = n;
+    // std::vector<T> hW(sizeW);
 
-        // cpu-lapack performance (only if not in perf mode)
-        *cpu_time_used = get_time_us_no_sync();
-        for(rocblas_int b = 0; b < bc; ++b)
-        {
-            cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
-        }
-        *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
-    }
+    // if(!perf)
+    // {
+    //     getri_outofplace_initData<true, false, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
+    //                                               singular);
 
-    getri_outofplace_initData<true, false, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
-                                              singular);
+    //     // cpu-lapack performance (only if not in perf mode)
+    //     *cpu_time_used = get_time_us_no_sync();
+    //     for(rocblas_int b = 0; b < bc; ++b)
+    //     {
+    //         cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
+    //     }
+    //     *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
+    // }
 
-    // cold calls
-    for(int iter = 0; iter < 2; iter++)
-    {
-        getri_outofplace_initData<false, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
-                                                  singular);
+    // getri_outofplace_initData<true, false, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
+    //                                           singular);
 
-        CHECK_ROCBLAS_ERROR(rocsolver_getri_outofplace(STRIDED, handle, n, dA.data(), lda, stA,
-                                                       dIpiv.data(), stP, dC.data(), ldc, stC,
-                                                       dInfo.data(), bc));
-    }
+    // // cold calls
+    // for(int iter = 0; iter < 2; iter++)
+    // {
+    //     getri_outofplace_initData<false, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
+    //                                               singular);
 
-    // gpu-lapack performance
-    hipStream_t stream;
-    CHECK_ROCBLAS_ERROR(rocblas_get_stream(handle, &stream));
-    double start;
+    //     CHECK_ROCBLAS_ERROR(rocsolver_getri_outofplace(STRIDED, handle, n, dA.data(), lda, stA,
+    //                                                    dIpiv.data(), stP, dC.data(), ldc, stC,
+    //                                                    dInfo.data(), bc));
+    // }
 
-    if(profile > 0)
-    {
-        if(profile_kernels)
-            rocsolver_log_set_layer_mode(rocblas_layer_mode_log_profile
-                                         | rocblas_layer_mode_ex_log_kernel);
-        else
-            rocsolver_log_set_layer_mode(rocblas_layer_mode_log_profile);
-        rocsolver_log_set_max_levels(profile);
-    }
+    // // gpu-lapack performance
+    // hipStream_t stream;
+    // CHECK_ROCBLAS_ERROR(rocblas_get_stream(handle, &stream));
+    // double start;
 
-    for(rocblas_int iter = 0; iter < hot_calls; iter++)
-    {
-        getri_outofplace_initData<false, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
-                                                  singular);
+    // if(profile > 0)
+    // {
+    //     if(profile_kernels)
+    //         rocsolver_log_set_layer_mode(rocblas_layer_mode_log_profile
+    //                                      | rocblas_layer_mode_ex_log_kernel);
+    //     else
+    //         rocsolver_log_set_layer_mode(rocblas_layer_mode_log_profile);
+    //     rocsolver_log_set_max_levels(profile);
+    // }
 
-        start = get_time_us_sync(stream);
-        rocsolver_getri_outofplace(STRIDED, handle, n, dA.data(), lda, stA, dIpiv.data(), stP,
-                                   dC.data(), ldc, stC, dInfo.data(), bc);
-        *gpu_time_used += get_time_us_sync(stream) - start;
-    }
-    *gpu_time_used /= hot_calls;
+    // for(rocblas_int iter = 0; iter < hot_calls; iter++)
+    // {
+    //     getri_outofplace_initData<false, true, T>(handle, n, dA, lda, dIpiv, bc, hA, hIpiv, hInfo,
+    //                                               singular);
+
+    //     start = get_time_us_sync(stream);
+    //     rocsolver_getri_outofplace(STRIDED, handle, n, dA.data(), lda, stA, dIpiv.data(), stP,
+    //                                dC.data(), ldc, stC, dInfo.data(), bc);
+    //     *gpu_time_used += get_time_us_sync(stream) - start;
+    // }
+    // *gpu_time_used /= hot_calls;
 }
 
 template <bool BATCHED, bool STRIDED, typename T>
