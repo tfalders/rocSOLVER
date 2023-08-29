@@ -1155,6 +1155,8 @@ void rocsolver_trsm_upper(rocblas_handle handle,
                 offB = idx2D(m - nextpiv, 0, incb, ldb);
                 BACKWARD_SUBSTITUTIONS;
 
+                hipError_t error = hipStreamSynchronize(stream);
+
                 // update right hand sides
                 rocsolver_gemm<BATCHED, STRIDED, T>(
                     handle, rocblas_operation_none, rocblas_operation_none, m - nextpiv, n, blk,
