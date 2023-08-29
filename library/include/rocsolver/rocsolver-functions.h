@@ -24135,9 +24135,43 @@ ROCSOLVER_EXPORT rocblas_status
  * ===========================================================================
  */
 
-/*! \brief CREATE_RFINFO initializes the structure rfinfo that contains the meta data and descriptors of the involved matrices
+/*! \brief SET_RFINFO_MODE sets the mode of the structure rfinfo required by the re-factorization functions
+    \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and 
+	by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
+
+    \details
+    @param[in]
+    rfinfo      #rocsolver_rfinfo.\n
+                The rfinfo struct to be set up.
+    @param[in]
+    mode        #rocsolver_rfinfo_mode.\n
+				Use rocsolver_rfinfo_mode_chol when the Cholesky factorization is required.  
+    ********************************************************************/
+
+ROCSOLVER_EXPORT rocblas_status rocsolver_set_rfinfo_mode(rocsolver_rfinfo rfinfo,
+                                                        rocsolver_rfinfo_mode mode);
+
+
+/*! \brief GET_RFINFO_MODE gets the mode of the structure rfinfo required by the re-factorization functions
+    \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and 
+	by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
+
+    \details
+    @param[in]
+    rfinfo      #rocsolver_rfinfo.\n
+                The referenced rfinfo struct.
+    @param[out]
+    mode        #rocsolver_rfinfo_mode.\n
+				The queried mode.  
+    ********************************************************************/
+
+ROCSOLVER_EXPORT rocblas_status rocsolver_get_rfinfo_mode(rocsolver_rfinfo rfinfo,
+                                                        rocsolver_rfinfo_mode* mode);
+
+
+/*! \brief CREATE_RFINFO initializes the structure rfinfo that contains the meta data and descriptors of the involved matrices 
 	required by the re-factorization functions
-    \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and
+    \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and 
 	by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
 
     \details
@@ -24152,8 +24186,8 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_create_rfinfo(rocsolver_rfinfo* rfinfo
                                                         rocblas_handle handle);
 
 /*! \brief DESTROY_RFINFO destroys the structure rfinfo used by the re-factorization functions
-	\ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and
-    by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
+	\ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and 
+    by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".    
 
     \details
     @param[in]
@@ -24162,26 +24196,6 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_create_rfinfo(rocsolver_rfinfo* rfinfo
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_destroy_rfinfo(rocsolver_rfinfo rfinfo);
-
-/*! \brief SET_RFINFO_MODE sets the mode of the structure rfinfo that contains the meta data and descriptors of the involved matrices
-	required by the re-factorization functions
-    \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and
-	by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
-
-    This routine must be called before \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS", and will return
-    rocblas_status_internal_error if called afterwards.
-
-    \details
-    @param[out]
-    rfinfo      #rocsolver_rfinfo.\n
-                The rfinfo struct to be set up.
-    @param[in]
-    mode        #rocsolver_rfinfo_mode.\n
-				Use rocsolver_rfinfo_mode_cholesky when the Cholesky factorization is required.
-    ********************************************************************/
-
-ROCSOLVER_EXPORT rocblas_status rocsolver_set_rfinfo_mode(rocsolver_rfinfo rfinfo,
-                                                          rocsolver_rfinfo_mode mode);
 
 /*! @{
     \brief CSRRF_SUMLU bundles the factors \f$L\f$ and \f$U\f$, associated with the LU factorization
@@ -24352,26 +24366,30 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_splitlu(rocblas_handle handle,
 
 /*! @{
     \brief CSRRF_ANALYSIS performs the analysis phase required by the re-factorization functions
-	\ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and
-    by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".
+	\ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" and \ref rocsolver_scsrrf_refactchol "CSRRF_REFACTCHOL", and 
+    by the direct solver \ref rocsolver_scsrrf_solve "CSRRF_SOLVE".	
 
     \details Consider a sparse matrix \f$M\f$ previously factorized as
 
     \f[
-        Q^TMQ = L_ML_M^T, \text{(Cholesky factorization for the symmetric positive definite case), or}
+        Q^TMQ = L_ML_M^T 
     \f]
 
-	\f[
-        PMQ = L_MU_M \text{LU factorization for the general case}
+	(Cholesky factorization for the symmetric positive definite case), or
+
+	\f[                                                                                             
+        PMQ = L_MU_M                                                                             
     \f]
+
+	(LU factorization for the general case)
 
     where \f$L_M\f$ is lower triangular (with unit diagonal in the general case), \f$U_M\f$ is upper triangular, and \f$P\f$
     and \f$Q\f$ are permutation matrices associated with pivoting and re-ordering (to minimize
     fill-in), respectively. The meta data generated by this routine is collected in the output parameter
     rfinfo. This information will allow the fast re-factorization of another sparse matrix \f$A\f$ as
 
-	\f[
-        Q^TAQ = L_AL_A^T, \text{or}
+	\f[                                                                                             
+        Q^TAQ = L_AL_A^T, \quad \text{or}                                                                     
     \f]
 
     \f[
@@ -24387,15 +24405,16 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_splitlu(rocblas_handle handle,
     as long as \f$A\f$ has the same sparsity pattern as the previous matrix \f$M\f$.
 
 	This function supposes that the rfinfo struct has been initialized by \ref rocsolver_create_rfinfo "RFINFO_CREATE".
-	By default, rfinfo is set up to work for general matrices (LU factorization). If the Cholesky factorization is
-	required, the corresponding mode must be set up by \ref rocsolver_set_rfinfo_mode "SET_RFINFO_MODE". This function
-	does not automatically detect symmetry.
+	By default, rfinfo is set up to work with the LU factorization (general matrices). If the matrix is symmetric positive definite,
+	and the Cholesky factorization is 
+	desired, then the corresponding mode must be manually set up by \ref rocsolver_set_rfinfo_mode "SET_RFINFO_MODE". This function 
+	does not automatically detect symmetry. 
 
-    For the general matrix mode, the LU factors \f$L_M\f$ and \f$U_M\f$ must be passed in a bundle
-    matrix \f$T=(L_M-I)+U_M\f$ as returned by \ref rocsolver_scsrrf_sumlu "CSRRF_SUMLU". For the symmetric mode,
-    the lower triangular part of \f$T\f$ must contain the Cholesky factor \f$L_M\f$; the strictly upper triangular
+    For the LU factorization mode, the LU factors \f$L_M\f$ and \f$U_M\f$ must be passed in a bundle
+    matrix \f$T=(L_M-I)+U_M\f$ as returned by \ref rocsolver_scsrrf_sumlu "CSRRF_SUMLU". For the Cholesky mode, 
+    the lower triangular part of \f$T\f$ must contain the Cholesky factor \f$L_M\f$; the strictly upper triangular 
 	part of \f$T\f$ will be ignored. Similarly, the strictly upper triangular part of \f$M\f$ is ignored when working
-	in symmetric mode.
+	in Cholesky mode.  
 
     \note
     If only a re-factorization will be executed (i.e. no solver phase), then nrhs can be set to zero
@@ -24412,7 +24431,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_splitlu(rocblas_handle handle,
                 re-factorization is needed.
     @param[in]
     nnzM        rocblas_int. nnzM >= 0.\n
-                The number of non-zero elements in M.
+                The number of non-zero elements in M. 
     @param[in]
     ptrM        pointer to rocblas_int. Array on the GPU of dimension n+1.\n
                 It contains the positions of the beginning of each row in indM and valM.
@@ -24420,11 +24439,11 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_splitlu(rocblas_handle handle,
     @param[in]
     indM        pointer to rocblas_int. Array on the GPU of dimension nnzM.\n
                 It contains the column indices of the non-zero elements of M. Indices are
-                sorted by row and by column within each row.
+                sorted by row and by column within each row. 
     @param[in]
     valM        pointer to type. Array on the GPU of dimension nnzM.\n
                 The values of the non-zero elements of M. The strictly upper triangular entries are
-				not referenced when working in symmetric mode.
+				not referenced when working in Cholesky mode. 
     @param[in]
     nnzT        rocblas_int. nnzT >= 0.\n
                 The number of non-zero elements in T.
@@ -24438,13 +24457,13 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_splitlu(rocblas_handle handle,
                 sorted by row and by column within each row.
     @param[in]
     valT        pointer to type. Array on the GPU of dimension nnzT.\n
-                The values of the non-zero elements of T. The strictly upper triangular entries are
-                not referenced when working in symmetric mode.
+                The values of the non-zero elements of T. The strictly upper triangular entries are 
+                not referenced when working in Cholesky mode.
     @param[in]
     pivP        pointer to rocblas_int. Array on the GPU of dimension n.\n
                 Contains the pivot indices representing the permutation matrix P, i.e. the
-                order in which the rows of matrix M were re-arranged. When working in symmetric mode,
-				this array is not referenced and can be null.
+                order in which the rows of matrix M were re-arranged. When working in Cholesky mode,
+				this array is not referenced and can be null. 
     @param[in]
     pivQ        pointer to rocblas_int. Array on the GPU of dimension n.\n
                 Contains the pivot indices representing the permutation matrix Q, i.e. the
@@ -24517,7 +24536,9 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_analysis(rocblas_handle handle,
     can be computed numerically without a symbolic analysis phase.
 
     This function supposes that rfinfo has been updated, by function \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS",
-    after the analysis phase of the previous matrix M and its initial factorization.
+    after the analysis phase of the previous matrix M and its initial factorization. Both functions, CSRRF_ANALYSIS and
+	CSRRF_REFACTLU must be run with the same rfinfo mode (LU factorization, the default mode), otherwise the workflow will 
+	result in an error. 
 
     @param[in]
     handle      rocblas_handle.\n
@@ -24594,8 +24615,9 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactlu(rocblas_handle handle,
                                                           rocsolver_rfinfo rfinfo);
 //! @}
 
+
 /*! @{
-    \brief CSRRF_REFACTCHOL performs a fast Cholesky factorization of a sparse symmetric positive definite matrix \f$A\f$
+    \brief CSRRF_REFACTCHOL performs a fast Cholesky factorization of a sparse symmetric positive definite matrix \f$A\f$ 
 	based on the information from the factorization of a previous matrix \f$M\f$ with the same sparsity pattern
     (re-factorization).
 
@@ -24614,8 +24636,10 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactlu(rocblas_handle handle,
 
     can be computed numerically without a symbolic analysis phase.
 
-    This function supposes that rfinfo has been set up in symmetric mode, and updated by function \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS",
-    after the analysis phase of the previous matrix M and its initial factorization.
+    This function supposes that rfinfo has been updated by function \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS",
+    after the analysis phase of the previous matrix M and its initial factorization. Both functions, CSRRF_ANALYSIS and
+    CSRRF_REFACTCHOL must be run with the same rfinfo mode (Cholesky factorization), otherwise the workflow will 
+    result in an error.
 
     @param[in]
     handle      rocblas_handle.\n
@@ -24635,7 +24659,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactlu(rocblas_handle handle,
                 sorted by row and by column within each row.
     @param[in]
     valA        pointer to type. Array on the GPU of dimension nnzA.\n
-                The values of the non-zero elements of A. The strictly upper triangular entries are
+                The values of the non-zero elements of A. The strictly upper triangular entries are 
                 not referenced.
     @param[in]
     nnzT        rocblas_int. nnzT >= 0.\n
@@ -24650,7 +24674,7 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactlu(rocblas_handle handle,
                 sorted by row and by column within each row.
     @param[out]
     valT        pointer to type. Array on the GPU of dimension nnzT.\n
-                The values of the non-zero elements of the new Cholesky factor L_A.
+                The values of the non-zero elements of the new Cholesky factor L_A. 
 				The strictly upper triangular entries of this array are not referenced.
     @param[in]
     pivQ        pointer to rocblas_int. Array on the GPU of dimension n.\n
@@ -24662,31 +24686,32 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactlu(rocblas_handle handle,
     ********************************************************************/
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_scsrrf_refactchol(rocblas_handle handle,
-                                                            const rocblas_int n,
-                                                            const rocblas_int nnzA,
-                                                            rocblas_int* ptrA,
-                                                            rocblas_int* indA,
-                                                            float* valA,
-                                                            const rocblas_int nnzT,
-                                                            rocblas_int* ptrT,
-                                                            rocblas_int* indT,
-                                                            float* valT,
-                                                            rocblas_int* pivQ,
-                                                            rocsolver_rfinfo rfinfo);
+                                                          const rocblas_int n,
+                                                          const rocblas_int nnzA,
+                                                          rocblas_int* ptrA,
+                                                          rocblas_int* indA,
+                                                          float* valA,
+                                                          const rocblas_int nnzT,
+                                                          rocblas_int* ptrT,
+                                                          rocblas_int* indT,
+                                                          float* valT,
+                                                          rocblas_int* pivQ,
+                                                          rocsolver_rfinfo rfinfo);
 
 ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactchol(rocblas_handle handle,
-                                                            const rocblas_int n,
-                                                            const rocblas_int nnzA,
-                                                            rocblas_int* ptrA,
-                                                            rocblas_int* indA,
-                                                            double* valA,
-                                                            const rocblas_int nnzT,
-                                                            rocblas_int* ptrT,
-                                                            rocblas_int* indT,
-                                                            double* valT,
-                                                            rocblas_int* pivQ,
-                                                            rocsolver_rfinfo rfinfo);
+                                                          const rocblas_int n,
+                                                          const rocblas_int nnzA,
+                                                          rocblas_int* ptrA,
+                                                          rocblas_int* indA,
+                                                          double* valA,
+                                                          const rocblas_int nnzT,
+                                                          rocblas_int* ptrT,
+                                                          rocblas_int* indT,
+                                                          double* valT,
+                                                          rocblas_int* pivQ,
+                                                          rocsolver_rfinfo rfinfo);
 //! @}
+
 
 /*! @{
     \brief CSRRF_SOLVE solves a linear system with sparse coefficient matrix \f$A\f$ in its
@@ -24701,26 +24726,28 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactchol(rocblas_handle handl
     where the sparse matrix \f$A\f$ is factorized as
 
     \f[
-        Q^TAQ = L_AL_A^T, \text{(Cholesky factorization for the symmetric positive definite case), or}
+        Q^TAQ = L_AL_A^T 
     \f]
 
+	(Cholesky factorization for the symmetric positive definite case), or
+    
 	\f[
-        PAQ = L_AU_A \text{LU factorization for the general case}
+        PAQ = L_AU_A
     \f]
+
+	(LU factorization for the general case),
 
     and \f$B\f$ is a dense matrix of right hand sides.
 
-	This function supposes that the rfinfo struct has been updated, by function
-    \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS", after the analysis phase.
-    By default, rfinfo is set up to work for general matrices (LU factorization). If the Cholesky factorization is
-    required, the corresponding mode must be set up by \ref rocsolver_set_rfinfo_mode "SET_RFINFO_MODE". This function
-    does not automatically detect symmetry.
+	This function supposes that rfinfo has been updated by function \ref rocsolver_scsrrf_analysis "CSRRF_ANALYSIS",
+    after the analysis phase. Both functions, CSRRF_ANALYSIS and
+    CSRRF_SOLVE must be run with the same rfinfo mode (LU or Cholesky factorization), otherwise the workflow will 
+    result in an error.
 
-    For the general matrix mode, the LU factors \f$L_A\f$ and \f$U_A\f$ must be passed in a bundle
-    matrix \f$T=(L_A-I)+U_A\f$ as returned by \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" or \ref rocsolver_scsrrf_sumlu "CSRRF_SUMLU".
-	For the symmetric mode,
-    the lower triangular part of \f$T\f$ must contain the Cholesky factor \f$L_A\f$; the strictly upper triangular
-    part of \f$T\f$ will be ignored.
+    For the LU factorization mode, the LU factors \f$L_A\f$ and \f$U_A\f$ must be passed in a bundle matrix \f$T=(L_A-I)+U_A\f$ 
+	as returned by \ref rocsolver_scsrrf_refactlu "CSRRF_REFACTLU" or \ref rocsolver_scsrrf_sumlu "CSRRF_SUMLU". For the Cholesky mode, 
+    the lower triangular part of \f$T\f$ must contain the Cholesky factor \f$L_A\f$; the strictly upper triangular 
+    part of \f$T\f$ will be ignored. 
 
     @param[in]
     handle      rocblas_handle.\n
@@ -24743,13 +24770,13 @@ ROCSOLVER_EXPORT rocblas_status rocsolver_dcsrrf_refactchol(rocblas_handle handl
                 sorted by row and by column within each row.
     @param[in]
     valT        pointer to type. Array on the GPU of dimension nnzT.\n
-                The values of the non-zero elements of T. The strictly upper triangular entries are
-                not referenced when working in symmetric mode.
+                The values of the non-zero elements of T. The strictly upper triangular entries are 
+                not referenced when working in Cholesky mode.
     @param[in]
     pivP        pointer to rocblas_int. Array on the GPU of dimension n.\n
                 Contains the pivot indices representing the permutation matrix P, i.e. the
-                order in which the rows of matrix A were re-arranged. When working in symmetric mode,
-                this array is not referenced and can be null.
+                order in which the rows of matrix A were re-arranged. When working in Cholesky mode,
+                this array is not referenced and can be null. 
     @param[in]
     pivQ        pointer to rocblas_int. Array on the GPU of dimension n.\n
                 Contains the pivot indices representing the permutation matrix Q, i.e. the
