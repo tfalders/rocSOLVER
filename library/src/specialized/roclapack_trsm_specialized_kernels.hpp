@@ -1148,13 +1148,12 @@ void rocsolver_trsm_upper(rocblas_handle handle,
 
             while(j < m - blk)
             {
-                //j = 864;
                 nextpiv = j + blk;
 
                 // solve for current diagonal block
-                // offA = idx2D(m - nextpiv, m - nextpiv, inca, lda);
-                // offB = idx2D(m - nextpiv, 0, incb, ldb);
-                // BACKWARD_SUBSTITUTIONS;
+                offA = idx2D(m - nextpiv, m - nextpiv, inca, lda);
+                offB = idx2D(m - nextpiv, 0, incb, ldb);
+                BACKWARD_SUBSTITUTIONS;
 
                 // update right hand sides
                 rocsolver_gemm<BATCHED, STRIDED, T>(
@@ -1166,18 +1165,18 @@ void rocsolver_trsm_upper(rocblas_handle handle,
                 j = nextpiv;
             }
 
-            // // solve last diagonal block
-            // nx = m - j;
-            // dimx = nx;
-            // dimy = 1024 / dimx;
-            // blocks = (ny - 1) / dimy + 1;
-            // grid = dim3(1, blocks, batch_count);
-            // threads = dim3(dimx, dimy, 1);
-            // lmemsize = dimy * sizeof(T);
+            // solve last diagonal block
+            nx = m - j;
+            dimx = nx;
+            dimy = 1024 / dimx;
+            blocks = (ny - 1) / dimy + 1;
+            grid = dim3(1, blocks, batch_count);
+            threads = dim3(dimx, dimy, 1);
+            lmemsize = dimy * sizeof(T);
 
-            // offA = 0;
-            // offB = 0;
-            // BACKWARD_SUBSTITUTIONS;
+            offA = 0;
+            offB = 0;
+            BACKWARD_SUBSTITUTIONS;
         }
     }
 

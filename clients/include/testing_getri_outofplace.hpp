@@ -236,19 +236,22 @@ void getri_outofplace_getError(const rocblas_handle handle,
     {
         // cpu_getri(n, hA[b], lda, hIpiv[b], hW.data(), sizeW, hInfo[b]);
 
-        rocblas_int j = 0;
-        while(j < n - 48)
-        {
-            rocblas_int nextpiv = j + 48;
-            cpu_gemm(rocblas_operation_none, rocblas_operation_none, n - nextpiv, n, 48, T(-1),
-                     hA[b] + ((n - nextpiv) * lda), lda, hC[b] + (n - nextpiv), ldc, T(1), hC[b],
-                     ldc);
+        // rocblas_int j = 0;
+        // while(j < n - 48)
+        // {
+        //     rocblas_int nextpiv = j + 48;
+        //     cpu_gemm(rocblas_operation_none, rocblas_operation_none, n - nextpiv, n, 48, T(-1),
+        //              hA[b] + ((n - nextpiv) * lda), lda, hC[b] + (n - nextpiv), ldc, T(1), hC[b],
+        //              ldc);
 
-            std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda)
-                      << ' ' << (n - nextpiv) << std::endl;
+        //     std::cout << (n - nextpiv) << ' ' << n << ' ' << 48 << ' ' << ((n - nextpiv) * lda)
+        //               << ' ' << (n - nextpiv) << std::endl;
 
-            j = nextpiv;
-        }
+        //     j = nextpiv;
+        // }
+
+        cpu_trsm(rocblas_side_left, rocblas_fill_upper, rocblas_operation_none,
+                 rocblas_diagonal_non_unit, n, n, T(1), hA[b], lda, hC[b], ldc);
     }
 
     // check info for singularities
