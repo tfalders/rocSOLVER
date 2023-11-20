@@ -134,6 +134,10 @@ template <bool CPU, bool GPU, typename T, typename Td, typename Ud, typename Th,
 void csrrf_solve_initData(rocblas_handle handle,
                           const rocblas_int n,
                           const rocblas_int nrhs,
+                          const rocblas_int nnzA,
+                          Ud& dptrA,
+                          Ud& dindA,
+                          Td& dvalA,
                           const rocblas_int nnzT,
                           Ud& dptrT,
                           Ud& dindT,
@@ -142,6 +146,9 @@ void csrrf_solve_initData(rocblas_handle handle,
                           Ud& dpivQ,
                           Td& dB,
                           const rocblas_int ldb,
+                          Uh& hptrA,
+                          Uh& hindA,
+                          Th& hvalA,
                           Uh& hptrT,
                           Uh& hindT,
                           Th& hvalT,
@@ -156,6 +163,14 @@ void csrrf_solve_initData(rocblas_handle handle,
     if(CPU)
     {
         fs::path file;
+
+        // read-in A
+        file = testcase / "ptrA";
+        read_matrix(file.string(), 1, n + 1, hptrA.data(), 1);
+        file = testcase / "indA";
+        read_matrix(file.string(), 1, nnzA, hindA.data(), 1);
+        file = testcase / "valA";
+        read_matrix(file.string(), 1, nnzA, hvalA.data(), 1);
 
         // read-in T
         file = testcase / "ptrT";
@@ -191,6 +206,9 @@ void csrrf_solve_initData(rocblas_handle handle,
 
     if(GPU)
     {
+        CHECK_HIP_ERROR(dptrA.transfer_from(hptrA));
+        CHECK_HIP_ERROR(dindA.transfer_from(hindA));
+        CHECK_HIP_ERROR(dvalA.transfer_from(hvalA));
         CHECK_HIP_ERROR(dptrT.transfer_from(hptrT));
         CHECK_HIP_ERROR(dindT.transfer_from(hindT));
         CHECK_HIP_ERROR(dvalT.transfer_from(hvalT));
@@ -208,6 +226,10 @@ template <typename T, typename Td, typename Ud, typename Th, typename Uh>
 void csrrf_solve_getError(rocblas_handle handle,
                           const rocblas_int n,
                           const rocblas_int nrhs,
+                          const rocblas_int nnzA,
+                          Ud& dptrA,
+                          Ud& dindA,
+                          Td& dvalA,
                           const rocblas_int nnzT,
                           Ud& dptrT,
                           Ud& dindT,
@@ -217,6 +239,9 @@ void csrrf_solve_getError(rocblas_handle handle,
                           Td& dB,
                           const rocblas_int ldb,
                           rocsolver_rfinfo rfinfo,
+                          Uh& hptrA,
+                          Uh& hindA,
+                          Th& hvalA,
                           Uh& hptrT,
                           Uh& hindT,
                           Th& hvalT,
@@ -230,14 +255,14 @@ void csrrf_solve_getError(rocblas_handle handle,
                           const rocsolver_rfinfo_mode mode)
 {
     // input data initialization
-    csrrf_solve_initData<true, true, T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP, dpivQ,
-                                        dB, ldb, hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX,
-                                        testcase, mode);
+    csrrf_solve_initData<true, true, T>(handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT, dptrT,
+                                        dindT, dvalT, dpivP, dpivQ, dB, ldb, hptrA, hindA, hvalA,
+                                        hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX, testcase, mode);
 
     // execute computations
     // GPU lapack
     CHECK_ROCBLAS_ERROR(rocsolver_csrrf_analysis(
-        handle, n, nrhs, nnzT, dptrT.data(), dindT.data(), dvalT.data(), nnzT, dptrT.data(),
+        handle, n, nrhs, nnzA, dptrA.data(), dindA.data(), dvalA.data(), nnzT, dptrT.data(),
         dindT.data(), dvalT.data(), dpivP.data(), dpivQ.data(), dB.data(), ldb, rfinfo));
 
     CHECK_ROCBLAS_ERROR(rocsolver_csrrf_solve(handle, n, nrhs, nnzT, dptrT.data(), dindT.data(),
@@ -254,6 +279,10 @@ template <typename T, typename Td, typename Ud, typename Th, typename Uh>
 void csrrf_solve_getPerfData(rocblas_handle handle,
                              const rocblas_int n,
                              const rocblas_int nrhs,
+                             const rocblas_int nnzA,
+                             Ud& dptrA,
+                             Ud& dindA,
+                             Td& dvalA,
                              const rocblas_int nnzT,
                              Ud& dptrT,
                              Ud& dindT,
@@ -263,6 +292,9 @@ void csrrf_solve_getPerfData(rocblas_handle handle,
                              Td& dB,
                              const rocblas_int ldb,
                              rocsolver_rfinfo rfinfo,
+                             Uh& hptrA,
+                             Uh& hindA,
+                             Th& hvalA,
                              Uh& hptrT,
                              Uh& hindT,
                              Th& hvalT,
@@ -281,19 +313,20 @@ void csrrf_solve_getPerfData(rocblas_handle handle,
 {
     *cpu_time_used = nan(""); // no timing on cpu-lapack execution
 
-    csrrf_solve_initData<true, true, T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP, dpivQ,
-                                        dB, ldb, hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX,
-                                        testcase, mode, false);
+    csrrf_solve_initData<true, true, T>(
+        handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT, dptrT, dindT, dvalT, dpivP, dpivQ, dB,
+        ldb, hptrA, hindA, hvalA, hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX, testcase, mode, false);
 
     CHECK_ROCBLAS_ERROR(rocsolver_csrrf_analysis(
-        handle, n, nrhs, nnzT, dptrT.data(), dindT.data(), dvalT.data(), nnzT, dptrT.data(),
+        handle, n, nrhs, nnzA, dptrA.data(), dindA.data(), dvalA.data(), nnzT, dptrT.data(),
         dindT.data(), dvalT.data(), dpivP.data(), dpivQ.data(), dB.data(), ldb, rfinfo));
 
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
-        csrrf_solve_initData<false, true, T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP,
-                                             dpivQ, dB, ldb, hptrT, hindT, hvalT, hpivP, hpivQ, hB,
+        csrrf_solve_initData<false, true, T>(handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT,
+                                             dptrT, dindT, dvalT, dpivP, dpivQ, dB, ldb, hptrA,
+                                             hindA, hvalA, hptrT, hindT, hvalT, hpivP, hpivQ, hB,
                                              hX, testcase, mode, false);
 
         CHECK_ROCBLAS_ERROR(rocsolver_csrrf_solve(handle, n, nrhs, nnzT, dptrT.data(), dindT.data(),
@@ -318,8 +351,9 @@ void csrrf_solve_getPerfData(rocblas_handle handle,
 
     for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
-        csrrf_solve_initData<false, true, T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP,
-                                             dpivQ, dB, ldb, hptrT, hindT, hvalT, hpivP, hpivQ, hB,
+        csrrf_solve_initData<false, true, T>(handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT,
+                                             dptrT, dindT, dvalT, dpivP, dpivQ, dB, ldb, hptrA,
+                                             hindA, hvalA, hptrT, hindT, hvalT, hpivP, hpivQ, hB,
                                              hX, testcase, mode, false);
 
         start = get_time_us_sync(stream);
@@ -409,8 +443,10 @@ void testing_csrrf_solve(Arguments& argus)
             matname = fmt::format("posmat_{}_{}", n, nnzA);
 
         testcase = get_sparse_data_dir() / fs::path(matname);
-        fs::path file = testcase / "ptrT";
-        read_last(file.string(), &nnzT);
+        fs::path fileA = testcase / "ptrA";
+        read_last(fileA.string(), &nnzA);
+        fs::path fileT = testcase / "ptrT";
+        read_last(fileT.string(), &nnzT);
     }
 
     // determine existing right-hand-side
@@ -444,6 +480,9 @@ void testing_csrrf_solve(Arguments& argus)
     }
 
     // determine sizes
+    size_t size_ptrA = size_t(n) + 1;
+    size_t size_indA = size_t(nnzA);
+    size_t size_valA = size_t(nnzA);
     size_t size_ptrT = size_t(n) + 1;
     size_t size_indT = size_t(nnzT);
     size_t size_valT = size_t(nnzT);
@@ -458,6 +497,9 @@ void testing_csrrf_solve(Arguments& argus)
     double max_error = 0, gpu_time_used = 0, cpu_time_used = 0;
 
     // memory allocations
+    host_strided_batch_vector<rocblas_int> hptrA(size_ptrA, 1, size_ptrA, 1);
+    host_strided_batch_vector<rocblas_int> hindA(size_indA, 1, size_indA, 1);
+    host_strided_batch_vector<T> hvalA(size_valA, 1, size_valA, 1);
     host_strided_batch_vector<rocblas_int> hptrT(size_ptrT, 1, size_ptrT, 1);
     host_strided_batch_vector<rocblas_int> hindT(size_indT, 1, size_indT, 1);
     host_strided_batch_vector<T> hvalT(size_valT, 1, size_valT, 1);
@@ -467,13 +509,21 @@ void testing_csrrf_solve(Arguments& argus)
     host_strided_batch_vector<T> hX(size_BX, 1, size_BX, 1);
     host_strided_batch_vector<T> hXres(size_BXres, 1, size_BXres, 1);
 
+    device_strided_batch_vector<rocblas_int> dptrA(size_ptrA, 1, size_ptrA, 1);
+    device_strided_batch_vector<rocblas_int> dindA(size_indA, 1, size_indA, 1);
+    device_strided_batch_vector<T> dvalA(size_valA, 1, size_valA, 1);
     device_strided_batch_vector<rocblas_int> dptrT(size_ptrT, 1, size_ptrT, 1);
     device_strided_batch_vector<rocblas_int> dindT(size_indT, 1, size_indT, 1);
     device_strided_batch_vector<T> dvalT(size_valT, 1, size_valT, 1);
     device_strided_batch_vector<rocblas_int> dpivP(size_pivP, 1, size_pivP, 1);
     device_strided_batch_vector<rocblas_int> dpivQ(size_pivQ, 1, size_pivQ, 1);
     device_strided_batch_vector<T> dB(size_BX, 1, size_BX, 1);
+    CHECK_HIP_ERROR(dptrA.memcheck());
     CHECK_HIP_ERROR(dptrT.memcheck());
+    if(size_indA)
+        CHECK_HIP_ERROR(dindA.memcheck());
+    if(size_valA)
+        CHECK_HIP_ERROR(dvalA.memcheck());
     if(size_indT)
         CHECK_HIP_ERROR(dindT.memcheck());
     if(size_valT)
@@ -500,16 +550,17 @@ void testing_csrrf_solve(Arguments& argus)
 
     // check computations
     if(argus.unit_check || argus.norm_check)
-        csrrf_solve_getError<T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP, dpivQ, dB, ldb,
-                                rfinfo, hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX, hXres,
-                                &max_error, testcase, mode);
+        csrrf_solve_getError<T>(handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT, dptrT, dindT, dvalT,
+                                dpivP, dpivQ, dB, ldb, rfinfo, hptrA, hindA, hvalA, hptrT, hindT,
+                                hvalT, hpivP, hpivQ, hB, hX, hXres, &max_error, testcase, mode);
 
     // collect performance data
     if(argus.timing)
-        csrrf_solve_getPerfData<T>(handle, n, nrhs, nnzT, dptrT, dindT, dvalT, dpivP, dpivQ, dB,
-                                   ldb, rfinfo, hptrT, hindT, hvalT, hpivP, hpivQ, hB, hX,
-                                   &gpu_time_used, &cpu_time_used, hot_calls, argus.profile,
-                                   argus.profile_kernels, argus.perf, testcase, mode);
+        csrrf_solve_getPerfData<T>(handle, n, nrhs, nnzA, dptrA, dindA, dvalA, nnzT, dptrT, dindT,
+                                   dvalT, dpivP, dpivQ, dB, ldb, rfinfo, hptrA, hindA, hvalA, hptrT,
+                                   hindT, hvalT, hpivP, hpivQ, hB, hX, &gpu_time_used,
+                                   &cpu_time_used, hot_calls, argus.profile, argus.profile_kernels,
+                                   argus.perf, testcase, mode);
 
     // validate results for rocsolver-test
     // using 20 * n * machine_precision as tolerance
