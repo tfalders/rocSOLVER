@@ -36,23 +36,6 @@
 #include <algorithm>
 #include <cmath>
 
-__device__ static double rocsolver_conj(double x)
-{
-    return (x);
-}
-__device__ static float rocsolver_conj(float x)
-{
-    return (x);
-}
-__device__ static rocblas_double_complex rocsolver_conj(rocblas_double_complex x)
-{
-    return (std::conj(x));
-}
-__device__ static rocblas_float_complex rocsolver_conj(rocblas_float_complex x)
-{
-    return (std::conj(x));
-}
-
 /**
  * indexing for packed storage
  * for upper triangular
@@ -167,7 +150,7 @@ __device__ static void potf2_simple(bool const is_upper, I const n, T* const A, 
             //   (2) vl21 * l11' = va21 =>  vl21 = va21/ l11', scale vector
             // ------------------------------------------------------------
 
-            auto const conj_lkk = rocsolver_conj(lkk);
+            auto const conj_lkk = conj(lkk);
             for(I j0 = (kcol + 1) + j0_start; j0 < n; j0 += j0_inc)
             {
                 auto const j0k = idx2D(j0, kcol, lda);
@@ -193,7 +176,7 @@ __device__ static void potf2_simple(bool const is_upper, I const n, T* const A, 
                     {
                         auto const vi = A[idx2D(i, kcol, lda)];
                         auto const ij = idx2D(i, j, lda);
-                        A[ij] = A[ij] - vi * rocsolver_conj(vj);
+                        A[ij] = A[ij] - vi * conj(vj);
                     }
                 }
             }
@@ -270,7 +253,7 @@ __device__ static void potf2_simple(bool const is_upper, I const n, T* const A, 
                         auto const vi = A[idx2D(kcol, i, lda)];
                         auto const ij = idx2D(i, j, lda);
 
-                        A[ij] = A[ij] - rocsolver_conj(vi) * vj;
+                        A[ij] = A[ij] - conj(vi) * vj;
                     }
                 }
             }
@@ -370,7 +353,7 @@ ROCSOLVER_KERNEL void potf2_kernel_small(const bool is_upper,
                                                            : idx_upper<rocblas_int>(i, j, n);
 
                 auto const aij = A[ij];
-                Ash[ij_packed] = (use_compute_lower) ? rocsolver_conj(aij) : aij;
+                Ash[ij_packed] = (use_compute_lower) ? conj(aij) : aij;
             };
         };
     }
@@ -410,7 +393,7 @@ ROCSOLVER_KERNEL void potf2_kernel_small(const bool is_upper,
                                                            : idx_upper<rocblas_int>(i, j, n);
 
                 auto const aij_packed = Ash[ij_packed];
-                A[ij] = (use_compute_lower) ? rocsolver_conj(aij_packed) : aij_packed;
+                A[ij] = (use_compute_lower) ? conj(aij_packed) : aij_packed;
             };
         };
     }
