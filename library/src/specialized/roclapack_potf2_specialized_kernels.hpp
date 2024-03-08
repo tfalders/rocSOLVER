@@ -304,14 +304,8 @@ ROCSOLVER_KERNEL void potf2_kernel_small(const bool is_upper,
     // -----------------------------------------
     // assume n by n matrix will fit in LDS cache
     // -----------------------------------------
-
-    auto const ld_Ash = n;
-    size_t constexpr LDS_MAXIMUM_SIZE = 64 * 1024;
-
-    bool const use_lds = (sizeof(T) * n * (n + 1) <= LDS_MAXIMUM_SIZE * 2);
-    __shared__ T Ash[LDS_MAXIMUM_SIZE / sizeof(T)];
-
-    assert(use_lds);
+    extern __shared__ rocblas_int lsmem[];
+    T* Ash = reinterpret_cast<T*>(lsmem);
 
     // --------------------------------------------------------
     // factoring Lower triangular matrix may be slightly faster
@@ -414,9 +408,11 @@ rocblas_status potf2_run_small(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
+    size_t lmemsize = sizeof(T) * (n * (n + 1)) / 2;
+
     bool const is_upper = (uplo == rocblas_fill_upper);
     ROCSOLVER_LAUNCH_KERNEL((potf2_kernel_small<T, U>), dim3(1, 1, batch_count), dim3(BS2, BS2, 1),
-                            0, stream, is_upper, n, A, shiftA, lda, strideA, info);
+                            lmemsize, stream, is_upper, n, A, shiftA, lda, strideA, info);
 
     return rocblas_status_success;
 }
