@@ -34,9 +34,6 @@ ROCSOLVER_BEGIN_NAMESPACE
  *    syevdx/heevdx_inplace is not intended for inclusion in the public API. It
  *    exists to provide a syevdx/heevdx method with a signature identical to
  *    the cuSOLVER implementation, for use exclusively in hipSOLVER.
- *
- *    TODO: The current implementation is based on syevx. It will need to be
- *    updated to syevdx at a later date.
  * ===========================================================================
  */
 

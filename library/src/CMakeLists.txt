@@ -188,6 +188,8 @@ set(rocsolver_lapack_source
   lapack/roclapack_sygvd_hegvd.cpp
   lapack/roclapack_sygvd_hegvd_batched.cpp
   lapack/roclapack_sygvd_hegvd_strided_batched.cpp
+  lapack/roclapack_syevd_heevd_ework.cpp
+  lapack/roclapack_sygvd_hegvd_ework.cpp
   #- jacobi
   lapack/roclapack_syevj_heevj.cpp
   lapack/roclapack_syevj_heevj_batched.cpp
