@@ -246,6 +246,19 @@ rocblas_status rocsolver_ger(rocblas_handle handle,
                              I batch_count,
                              T** work);
 
+// geqr2
+template <typename T, typename I, typename U>
+rocblas_status geqr2_run_small(rocblas_handle handle,
+                               const I m,
+                               const I n,
+                               U A,
+                               const rocblas_stride shiftA,
+                               const I lda,
+                               const rocblas_stride strideA,
+                               T* ipiv,
+                               const rocblas_stride strideP,
+                               const I batch_count);
+
 // potf2
 template <typename T, typename U>
 rocblas_status potf2_run_small(rocblas_handle handle,

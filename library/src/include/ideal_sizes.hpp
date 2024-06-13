@@ -33,6 +33,14 @@
 
 /***************** geqr2/geqrf and geql2/geqlf ********************************
 *******************************************************************************/
+#ifndef GEQR2_MAX_DIM
+#define GEQR2_MAX_DIM 256
+#endif
+
+#ifndef GEQR2_MIN_DIM
+#define GEQR2_MIN_DIM 64
+#endif
+
 /*! \brief Determines the size of the block column factorized at each step
     in the blocked QR or QL algorithm (GEQRF or GEQLF). It also applies to the
     corresponding batched and strided-batched routines. */

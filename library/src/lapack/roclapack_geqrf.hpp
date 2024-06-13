@@ -77,7 +77,8 @@ void rocsolver_geqrf_getMemorySize(const rocblas_int m,
         *size_Abyx_norms_trfact = sizeof(T) * jb * jb * batch_count;
 
         // requirements for calling GEQR2 with sub blocks
-        rocsolver_geqr2_getMemorySize<BATCHED, T>(m, jb, batch_count, size_scalars, &w1, &s2, &s1);
+        rocsolver_geqr2_getMemorySize<BATCHED, T>(m, jb, batch_count, size_scalars, &w1, &s2, &s1,
+                                                  true);
         *size_Abyx_norms_trfact = std::max(s2, *size_Abyx_norms_trfact);
 
         // requirements for calling LARFT
