@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include "../auxiliary/rocauxiliary_larfg.hpp"
+#include "lapack_device_functions.hpp"
 #include "rocsolver_run_specialized_kernels.hpp"
 
 ROCSOLVER_BEGIN_NAMESPACE
@@ -53,10 +55,67 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_MIN_DIM)
                        T* ipivA,
                        const rocblas_stride strideP)
 {
+    I bid = hipBlockIdx_x;
+    I tid = hipThreadIdx_x;
+
+    // select batch instance
+    T* A = load_ptr_batch<T>(AA, bid, shiftA, strideA);
+    T* ipiv = load_ptr_batch<T>(ipivA, bid, 0, strideP);
+
+    // shared variables
+    __shared__ T sval_abyx[GEQR2_MAX_DIM];
+    __shared__ T alpha;
+
+    const I dim = std::min(m, n);
+    for(I k = 0; k < dim; k++)
+    {
+        //--- LARFG ---
+        nrm2_squared<GEQR2_MIN_DIM, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval_abyx);
+        if(tid == 0)
+            set_taubeta<T>(ipiv + k, sval_abyx, A + k + k * lda);
+        __syncthreads();
+        for(I i = tid; i < m - k - 1; i += GEQR2_MIN_DIM)
+            A[(k + 1 + i) + k * lda] *= sval_abyx[0];
+        __syncthreads();
+
+        if(k < n - 1)
+        {
+            if(tid == 0)
+            {
+                alpha = A[k + k * lda];
+                A[k + k * lda] = 1;
+            }
+            __syncthreads();
+
+            //--- LARF ---
+            for(I j = tid; j < n - k - 1; j += GEQR2_MIN_DIM)
+            {
+                T temp = 0;
+                for(I i = 0; i < m - k; i++)
+                {
+                    temp += conj(A[(k + i) + (k + 1 + j) * lda]) * A[(k + i) + k * lda];
+                }
+                sval_abyx[j] = temp;
+            }
+            __syncthreads();
+            for(I j = tid; j < n - k - 1; j += GEQR2_MIN_DIM)
+            {
+                T temp = -conj(ipiv[k]) * conj(sval_abyx[j]);
+                for(I i = 0; i < m - k; i++)
+                {
+                    A[(k + i) + (k + 1 + j) * lda] += temp * A[(k + i) + k * lda];
+                }
+            }
+            __syncthreads();
+
+            if(tid == 0)
+                A[k + k * lda] = alpha;
+        }
+    }
 }
 
 /*************************************************************
-    Launchers of specilized  kernels
+    Launchers of specialized  kernels
 *************************************************************/
 
 template <typename T, typename I, typename U>
