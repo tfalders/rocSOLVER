@@ -63,53 +63,40 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_MIN_DIM)
     T* ipiv = load_ptr_batch<T>(ipivA, bid, 0, strideP);
 
     // shared variables
-    __shared__ T sval_abyx[GEQR2_MAX_DIM];
-    __shared__ T alpha;
+    __shared__ T sval[GEQR2_MIN_DIM];
+    __shared__ T x[GEQR2_MAX_DIM];
+    x[0] = 1;
 
     const I dim = std::min(m, n);
     for(I k = 0; k < dim; k++)
     {
         //--- LARFG ---
-        nrm2_squared<GEQR2_MIN_DIM, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval_abyx);
+        nrm2_squared<GEQR2_MIN_DIM, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval);
         if(tid == 0)
-            set_taubeta<T>(ipiv + k, sval_abyx, A + k + k * lda);
+            set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
         __syncthreads();
         for(I i = tid; i < m - k - 1; i += GEQR2_MIN_DIM)
-            A[(k + 1 + i) + k * lda] *= sval_abyx[0];
+            x[i + 1] = A[(k + 1 + i) + k * lda] *= sval[0];
         __syncthreads();
 
         if(k < n - 1)
         {
-            if(tid == 0)
-            {
-                alpha = A[k + k * lda];
-                A[k + k * lda] = 1;
-            }
-            __syncthreads();
-
             //--- LARF ---
             for(I j = tid; j < n - k - 1; j += GEQR2_MIN_DIM)
             {
                 T temp = 0;
                 for(I i = 0; i < m - k; i++)
                 {
-                    temp += conj(A[(k + i) + (k + 1 + j) * lda]) * A[(k + i) + k * lda];
+                    temp += conj(A[(k + i) + (k + 1 + j) * lda]) * x[i];
                 }
-                sval_abyx[j] = temp;
-            }
-            __syncthreads();
-            for(I j = tid; j < n - k - 1; j += GEQR2_MIN_DIM)
-            {
-                T temp = -conj(ipiv[k]) * conj(sval_abyx[j]);
+
+                temp = -conj(ipiv[k]) * conj(temp);
                 for(I i = 0; i < m - k; i++)
                 {
-                    A[(k + i) + (k + 1 + j) * lda] += temp * A[(k + i) + k * lda];
+                    A[(k + i) + (k + 1 + j) * lda] += temp * x[i];
                 }
             }
             __syncthreads();
-
-            if(tid == 0)
-                A[k + k * lda] = alpha;
         }
     }
 }
