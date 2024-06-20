@@ -45,7 +45,7 @@ ROCSOLVER_BEGIN_NAMESPACE
 *************************************************************/
 
 template <typename T, typename I, typename U>
-ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_MIN_DIM)
+ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
     geqr2_kernel_small(const I m,
                        const I n,
                        U AA,
@@ -63,26 +63,26 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_MIN_DIM)
     T* ipiv = load_ptr_batch<T>(ipivA, bid, 0, strideP);
 
     // shared variables
-    __shared__ T sval[GEQR2_MIN_DIM];
-    __shared__ T x[GEQR2_MAX_DIM];
+    __shared__ T sval[GEQR2_SSKER_THREADS];
+    __shared__ T x[GEQR2_SSKER_MAX_M];
     x[0] = 1;
 
     const I dim = std::min(m, n);
     for(I k = 0; k < dim; k++)
     {
         //--- LARFG ---
-        nrm2_squared<GEQR2_MIN_DIM, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval);
+        nrm2_squared<GEQR2_SSKER_THREADS, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval);
         if(tid == 0)
             set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
         __syncthreads();
-        for(I i = tid; i < m - k - 1; i += GEQR2_MIN_DIM)
+        for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
             x[i + 1] = A[(k + 1 + i) + k * lda] *= sval[0];
         __syncthreads();
 
         if(k < n - 1)
         {
             //--- LARF ---
-            for(I j = tid; j < n - k - 1; j += GEQR2_MIN_DIM)
+            for(I j = tid; j < n - k - 1; j += GEQR2_SSKER_THREADS)
             {
                 T temp = 0;
                 for(I i = 0; i < m - k; i++)
@@ -118,7 +118,7 @@ rocblas_status geqr2_run_small(rocblas_handle handle,
                                const I batch_count)
 {
     dim3 grid(batch_count, 1, 1);
-    dim3 block(GEQR2_MIN_DIM, 1, 1);
+    dim3 block(GEQR2_SSKER_THREADS, 1, 1);
 
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);

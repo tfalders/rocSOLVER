@@ -33,12 +33,16 @@
 
 /***************** geqr2/geqrf and geql2/geqlf ********************************
 *******************************************************************************/
-#ifndef GEQR2_MAX_DIM
-#define GEQR2_MAX_DIM 256
+#ifndef GEQR2_SSKER_THREADS
+#define GEQR2_SSKER_THREADS 128
 #endif
 
-#ifndef GEQR2_MIN_DIM
-#define GEQR2_MIN_DIM 64
+#ifndef GEQR2_SSKER_MAX_M
+#define GEQR2_SSKER_MAX_M 128
+#endif
+
+#ifndef GEQR2_SSKER_MAX_N
+#define GEQR2_SSKER_MAX_N 256
 #endif
 
 /*! \brief Determines the size of the block column factorized at each step

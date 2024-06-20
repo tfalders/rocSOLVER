@@ -62,8 +62,7 @@ void rocsolver_geqr2_getMemorySize(const rocblas_int m,
     }
 
     // if small size nothing else is needed
-    if(!inblocked
-       && ((m <= GEQR2_MAX_DIM && n <= GEQR2_MIN_DIM) || (m <= GEQR2_MIN_DIM && n <= GEQR2_MAX_DIM)))
+    if(!inblocked && m <= GEQR2_SSKER_MAX_M && n <= GEQR2_SSKER_MAX_N)
     {
         *size_scalars = 0;
         *size_work_workArr = 0;
@@ -137,7 +136,7 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
         return rocblas_status_success;
 
     // if small size, use optimized kernel
-    if((m <= GEQR2_MAX_DIM && n <= GEQR2_MIN_DIM) || (m <= GEQR2_MIN_DIM && n <= GEQR2_MAX_DIM))
+    if(m <= GEQR2_SSKER_MAX_M && n <= GEQR2_SSKER_MAX_N)
     {
         return geqr2_run_small<T>(handle, m, n, A, shiftA, lda, strideA, ipiv, strideP, batch_count);
     }
