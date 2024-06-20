@@ -135,12 +135,6 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
     if(m == 0 || n == 0 || batch_count == 0)
         return rocblas_status_success;
 
-    // if small size, use optimized kernel
-    if(m <= GEQR2_SSKER_MAX_M && n <= GEQR2_SSKER_MAX_N)
-    {
-        return geqr2_run_small<T>(handle, m, n, A, shiftA, lda, strideA, ipiv, strideP, batch_count);
-    }
-
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
@@ -148,6 +142,14 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
 
     for(rocblas_int j = 0; j < dim; ++j)
     {
+        // if small size, use optimized kernel
+        if(m - j <= GEQR2_SSKER_MAX_M && n - j <= GEQR2_SSKER_MAX_N)
+        {
+            geqr2_run_small<T>(handle, m - j, n - j, A, shiftA + idx2D(j, j, lda), lda, strideA,
+                               ipiv + j, strideP, batch_count);
+            break;
+        }
+
         // generate Householder reflector to work on column j
         rocsolver_larfg_template(handle, m - j, A, shiftA + idx2D(j, j, lda), A,
                                  shiftA + idx2D(std::min(j + 1, m - 1), j, lda), 1, strideA,
