@@ -795,12 +795,17 @@ __device__ void nrm2(const rocblas_int tid, const rocblas_int n, T* A, const roc
         sval[0] = sqrt(sval[0]);
 }
 
-/** NRM2_SQUARED finds the square of the euclidean norm of a given vector.
+/** DOT finds the dot product of vectors x and y (or conj(y)).
     MAX_THDS should be 64, 128, 256, 512, or 1024, and sval should
     be a shared array of size MAX_THDS. **/
-template <int MAX_THDS, typename T>
-__device__ void
-    nrm2_squared(const rocblas_int tid, const rocblas_int n, T* A, const rocblas_int incA, T* sval)
+template <int MAX_THDS, bool CONJY, typename T>
+__device__ void dot(const rocblas_int tid,
+                    const rocblas_int n,
+                    T* x,
+                    const rocblas_int incX,
+                    T* y,
+                    const rocblas_int incY,
+                    T* sval)
 {
     // local memory setup
     T val = 0;
@@ -808,7 +813,7 @@ __device__ void
     // read into shared memory while doing initial step
     // (each thread reduce as many elements as needed to cover the original array)
     for(int i = tid; i < n; i += MAX_THDS)
-        val = val + A[i * incA] * conj(A[i * incA]);
+        val = val + x[i * incX] * (CONJY ? conj(y[i * incY]) : y[i * incY]);
     sval[tid] = val;
     __syncthreads();
 
@@ -853,7 +858,7 @@ __device__ void
         __threadfence();
     }
 
-    // after the reduction, the squared euclidean norm of the elements is in sval[0]
+    // after the reduction, the dot product is in sval[0]
 }
 
 /** LAGTF computes an LU factorization of a matrix T - lambda*I, where T

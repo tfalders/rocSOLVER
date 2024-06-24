@@ -71,7 +71,8 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
     for(I k = 0; k < dim; k++)
     {
         //--- LARFG ---
-        nrm2_squared<GEQR2_SSKER_THREADS, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1, sval);
+        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1,
+                                          A + (k + 1) + k * lda, 1, sval);
         if(tid == 0)
             set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
         __syncthreads();
@@ -101,6 +102,62 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
     }
 }
 
+template <typename T, typename I, typename U>
+ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
+    geqr2_panel_kernel(const I m,
+                       const I n,
+                       U AA,
+                       const rocblas_stride shiftA,
+                       const I lda,
+                       const rocblas_stride strideA,
+                       T* ipivA,
+                       const rocblas_stride strideP)
+{
+    I bid = hipBlockIdx_x;
+    I tid = hipThreadIdx_x;
+
+    // select batch instance
+    T* A = load_ptr_batch<T>(AA, bid, shiftA, strideA);
+    T* ipiv = load_ptr_batch<T>(ipivA, bid, 0, strideP);
+
+    // shared variables
+    __shared__ T sval[GEQR2_SSKER_THREADS];
+    __shared__ T x[GEQR2_SSKER_MAX_M];
+    x[0] = 1;
+
+    const I dim = std::min(m, n);
+    for(I k = 0; k < dim; k++)
+    {
+        //--- LARFG ---
+        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1,
+                                          A + (k + 1) + k * lda, 1, sval);
+        if(tid == 0)
+            set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
+        __syncthreads();
+        for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
+            x[i + 1] = A[(k + 1 + i) + k * lda] *= sval[0];
+        __syncthreads();
+
+        if(k < n - 1)
+        {
+            //--- LARF ---
+            for(I j = 0; j < n - k - 1; j++)
+            {
+                dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k, x, 1, A + k + (k + 1 + j) * lda, 1,
+                                                  sval);
+                __syncthreads();
+
+                T temp = -conj(ipiv[k]) * conj(sval[0]);
+                for(I i = tid; i < m - k; i += GEQR2_SSKER_THREADS)
+                {
+                    A[(k + i) + (k + 1 + j) * lda] += temp * x[i];
+                }
+                __syncthreads();
+            }
+        }
+    }
+}
+
 /*************************************************************
     Launchers of specialized  kernels
 *************************************************************/
@@ -123,7 +180,9 @@ rocblas_status geqr2_run_small(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
-    ROCSOLVER_LAUNCH_KERNEL(geqr2_kernel_small<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
+    // ROCSOLVER_LAUNCH_KERNEL(geqr2_kernel_small<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
+    //                         strideA, ipiv, strideP);
+    ROCSOLVER_LAUNCH_KERNEL(geqr2_panel_kernel<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
                             strideA, ipiv, strideP);
 
     return rocblas_status_success;
