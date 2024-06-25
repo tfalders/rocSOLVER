@@ -61,15 +61,15 @@ void rocsolver_geqr2_getMemorySize(const rocblas_int m,
         return;
     }
 
-    // if small size nothing else is needed
-    if(!inblocked && m <= GEQR2_SSKER_MAX_M && n <= GEQR2_SSKER_MAX_N)
-    {
-        *size_scalars = 0;
-        *size_work_workArr = 0;
-        *size_Abyx_norms = 0;
-        *size_diag = 0;
-        return;
-    }
+    // // if small size nothing else is needed
+    // if(!inblocked && m <= GEQR2_SSKER_MAX_M && n <= GEQR2_SSKER_MAX_N)
+    // {
+    //     *size_scalars = 0;
+    //     *size_work_workArr = 0;
+    //     *size_Abyx_norms = 0;
+    //     *size_diag = 0;
+    //     return;
+    // }
 
     // size of Abyx_norms is maximum of what is needed by larf and larfg
     // size_work_workArr is maximum of re-usable work space and array of pointers to workspace
@@ -142,18 +142,21 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
 
     for(rocblas_int j = 0; j < dim; ++j)
     {
-        // if small size, use optimized kernel
-        if(m - j <= GEQR2_SSKER_MAX_M && n - j <= GEQR2_SSKER_MAX_N)
+        // // if small size, use optimized kernel
+        // if(m - j <= GEQR2_SSKER_MAX_M && n - j <= GEQR2_SSKER_MAX_N)
+        if(m - j <= GEQR2_SSKER_MAX_M)
         {
             geqr2_run_small<T>(handle, m - j, n - j, A, shiftA + idx2D(j, j, lda), lda, strideA,
                                ipiv + j, strideP, batch_count);
-            break;
+            //break;
         }
-
-        // generate Householder reflector to work on column j
-        rocsolver_larfg_template(handle, m - j, A, shiftA + idx2D(j, j, lda), A,
-                                 shiftA + idx2D(std::min(j + 1, m - 1), j, lda), 1, strideA,
-                                 (ipiv + j), strideP, batch_count, (T*)work_workArr, Abyx_norms);
+        else
+        {
+            // generate Householder reflector to work on column j
+            rocsolver_larfg_template(handle, m - j, A, shiftA + idx2D(j, j, lda), A,
+                                     shiftA + idx2D(std::min(j + 1, m - 1), j, lda), 1, strideA,
+                                     (ipiv + j), strideP, batch_count, (T*)work_workArr, Abyx_norms);
+        }
 
         if(j < n - 1)
         {

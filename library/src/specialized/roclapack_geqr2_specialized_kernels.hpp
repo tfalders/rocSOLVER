@@ -68,37 +68,39 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
     x[0] = 1;
 
     const I dim = std::min(m, n);
-    for(I k = 0; k < dim; k++)
+    // for(I k = 0; k < dim; k++)
+    I k = 0;
     {
         //--- LARFG ---
-        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1,
-                                          A + (k + 1) + k * lda, 1, sval);
+        for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
+            x[i + 1] = A[(k + 1 + i) + k * lda];
+        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, x + 1, 1, x + 1, 1, sval);
         if(tid == 0)
             set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
         __syncthreads();
         for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
-            x[i + 1] = A[(k + 1 + i) + k * lda] *= sval[0];
+            A[(k + 1 + i) + k * lda] = x[i + 1] *= sval[0];
         __syncthreads();
 
-        if(k < n - 1)
-        {
-            //--- LARF ---
-            for(I j = tid; j < n - k - 1; j += GEQR2_SSKER_THREADS)
-            {
-                T temp = 0;
-                for(I i = 0; i < m - k; i++)
-                {
-                    temp += conj(A[(k + i) + (k + 1 + j) * lda]) * x[i];
-                }
+        // if(k < n - 1)
+        // {
+        //     //--- LARF ---
+        //     for(I j = tid; j < n - k - 1; j += GEQR2_SSKER_THREADS)
+        //     {
+        //         T temp = 0;
+        //         for(I i = 0; i < m - k; i++)
+        //         {
+        //             temp += conj(A[(k + i) + (k + 1 + j) * lda]) * x[i];
+        //         }
 
-                temp = -conj(ipiv[k]) * conj(temp);
-                for(I i = 0; i < m - k; i++)
-                {
-                    A[(k + i) + (k + 1 + j) * lda] += temp * x[i];
-                }
-            }
-            __syncthreads();
-        }
+        //         temp = -conj(ipiv[k]) * conj(temp);
+        //         for(I i = 0; i < m - k; i++)
+        //         {
+        //             A[(k + i) + (k + 1 + j) * lda] += temp * x[i];
+        //         }
+        //     }
+        //     __syncthreads();
+        // }
     }
 }
 
@@ -123,19 +125,21 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
     // shared variables
     __shared__ T sval[GEQR2_SSKER_THREADS];
     __shared__ T x[GEQR2_SSKER_MAX_M];
+    __shared__ T y[GEQR2_SSKER_MAX_M];
     x[0] = 1;
 
     const I dim = std::min(m, n);
     for(I k = 0; k < dim; k++)
     {
         //--- LARFG ---
-        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, A + (k + 1) + k * lda, 1,
-                                          A + (k + 1) + k * lda, 1, sval);
+        for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
+            x[i + 1] = A[(k + 1 + i) + k * lda];
+        dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k - 1, x + 1, 1, x + 1, 1, sval);
         if(tid == 0)
             set_taubeta<T>(ipiv + k, sval, A + k + k * lda);
         __syncthreads();
         for(I i = tid; i < m - k - 1; i += GEQR2_SSKER_THREADS)
-            x[i + 1] = A[(k + 1 + i) + k * lda] *= sval[0];
+            A[(k + 1 + i) + k * lda] = x[i + 1] *= sval[0];
         __syncthreads();
 
         if(k < n - 1)
@@ -143,14 +147,16 @@ ROCSOLVER_KERNEL void __launch_bounds__(GEQR2_SSKER_THREADS)
             //--- LARF ---
             for(I j = 0; j < n - k - 1; j++)
             {
-                dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k, x, 1, A + k + (k + 1 + j) * lda, 1,
-                                                  sval);
+                for(I i = tid; i < m - k; i += GEQR2_SSKER_THREADS)
+                    y[i] = A[(k + i) + (k + 1 + j) * lda];
+
+                dot<GEQR2_SSKER_THREADS, true, T>(tid, m - k, x, 1, y, 1, sval);
                 __syncthreads();
 
                 T temp = -conj(ipiv[k]) * conj(sval[0]);
                 for(I i = tid; i < m - k; i += GEQR2_SSKER_THREADS)
                 {
-                    A[(k + i) + (k + 1 + j) * lda] += temp * x[i];
+                    A[(k + i) + (k + 1 + j) * lda] = y[i] + temp * x[i];
                 }
                 __syncthreads();
             }
@@ -180,10 +186,10 @@ rocblas_status geqr2_run_small(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
-    // ROCSOLVER_LAUNCH_KERNEL(geqr2_kernel_small<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
-    //                         strideA, ipiv, strideP);
-    ROCSOLVER_LAUNCH_KERNEL(geqr2_panel_kernel<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
+    ROCSOLVER_LAUNCH_KERNEL(geqr2_kernel_small<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
                             strideA, ipiv, strideP);
+    // ROCSOLVER_LAUNCH_KERNEL(geqr2_panel_kernel<T>, grid, block, 0, stream, m, n, A, shiftA, lda,
+    //                         strideA, ipiv, strideP);
 
     return rocblas_status_success;
 }
