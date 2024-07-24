@@ -333,11 +333,6 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
         auto const n2 = n / 2;
         auto const n1 = n - n2;
 
-        auto const A11_offset = idx2D(0, 0, lda);
-        auto const A21_offset = idx2D(n1, 0, lda);
-        auto const A12_offset = idx2D(0, n1, lda);
-        auto const A22_offset = idx2D(n1, n1, lda);
-
         if(uplo == rocblas_fill_upper)
         {
             // -------------------------------------------------
