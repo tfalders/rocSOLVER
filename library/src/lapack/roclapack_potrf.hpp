@@ -204,7 +204,7 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                                                   const I row_offset = 0)
 {
     ROCSOLVER_ENTER("potrf_recursive", "uplo:", uplo, "n:", n, "shiftA:", shiftA, "lda:", lda,
-                    "bc:", batch_count);
+                    "bc:", batch_count, "row_offset:", row_offset);
     using S = decltype(std::real(T{}));
 
     // quick return
