@@ -349,22 +349,23 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 work3, work4, pivots, iinfo, optim_mem));
 
             // find U12 given A12 = U11' * U12
+            auto const A12_offset = idx2D(0, n1, lda);
             ROCBLAS_CHECK(rocsolver_trsm_upper<BATCHED, STRIDED, T>(
                 handle, rocblas_side_left, rocblas_operation_conjugate_transpose,
-                rocblas_diagonal_non_unit, n1, n2, A, shiftA, lda, strideA, A,
-                shiftA + idx2D(0, n1, lda), lda, strideA, batch_count, optim_mem, work1, work2,
-                work3, work4));
+                rocblas_diagonal_non_unit, n1, n2, A, shiftA, lda, strideA, A, shiftA + A12_offset,
+                lda, strideA, batch_count, optim_mem, work1, work2, work3, work4));
 
             // update A22 as A22 - U12' * U12
+            auto const A22_offset = idx2D(n1, n1, lda);
             ROCBLAS_CHECK(rocblasCall_syrk_herk<BATCHED, T>(
                 handle, uplo, rocblas_operation_conjugate_transpose, n2, n1, &s_minone, A,
-                shiftA + idx2D(0, n1, lda), lda, strideA, &s_one, A, shiftA + idx2D(n1, n1, lda),
-                lda, strideA, batch_count));
+                shiftA + A12_offset, lda, strideA, &s_one, A, shiftA + A22_offset, lda, strideA,
+                batch_count));
 
             // find U22 given A22 = U22' * U22
             ROCBLAS_CHECK(rocsolver_potrf_recursive_template<BATCHED, STRIDED, T>(
-                handle, uplo, n2, A, shiftA + idx2D(n1, n1, lda), lda, strideA, iinfo, batch_count,
-                scalars, work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
+                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, iinfo, batch_count, scalars,
+                work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
             ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, n1,
                                     batch_count);
         }
@@ -384,21 +385,22 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 work3, work4, pivots, iinfo, optim_mem));
 
             // find L21 given A21 = L21 * L11'
+            auto const A21_offset = idx2D(n1, 0, lda);
             ROCBLAS_CHECK(rocsolver_trsm_lower<BATCHED, STRIDED, T>(
                 handle, rocblas_side_right, rocblas_operation_conjugate_transpose,
-                rocblas_diagonal_non_unit, n2, n1, A, shiftA, lda, strideA, A,
-                shiftA + idx2D(n1, 0, lda), lda, strideA, batch_count, optim_mem, work1, work2,
-                work3, work4));
+                rocblas_diagonal_non_unit, n2, n1, A, shiftA, lda, strideA, A, shiftA + A21_offset,
+                lda, strideA, batch_count, optim_mem, work1, work2, work3, work4));
 
             // update A22 as A22 - L21 * L21'
+            auto const A22_offset = idx2D(n1, n1, lda);
             ROCBLAS_CHECK(rocblasCall_syrk_herk<BATCHED, T>(
-                handle, uplo, rocblas_operation_none, n2, n1, &s_minone, A, shiftA + idx2D(n1, 0, lda),
-                lda, strideA, &s_one, A, shiftA + idx2D(n1, n1, lda), lda, strideA, batch_count));
+                handle, uplo, rocblas_operation_none, n2, n1, &s_minone, A, shiftA + A21_offset,
+                lda, strideA, &s_one, A, shiftA + A22_offset, lda, strideA, batch_count));
 
             // find L22 given A22 = L22 * L22'
             ROCBLAS_CHECK(rocsolver_potrf_recursive_template<BATCHED, STRIDED, T>(
-                handle, uplo, n2, A, shiftA + idx2D(n1, n1, lda), lda, strideA, iinfo, batch_count,
-                scalars, work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
+                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, iinfo, batch_count, scalars,
+                work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
             ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, n1,
                                     batch_count);
         }
