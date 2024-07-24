@@ -252,8 +252,9 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 jb = std::min(n - j, nb); // number of columns in the block
                 ROCSOLVER_LAUNCH_KERNEL(reset_info, gridReset, threads, 0, stream, iinfo,
                                         batch_count, 0);
-                rocsolver_potf2_template<T>(handle, uplo, jb, A, shiftA + idx2D(j, j, lda), lda,
-                                            strideA, iinfo, batch_count, scalars, (T*)work1, pivots);
+                ROCBLAS_CHECK(rocsolver_potf2_template<T>(
+                    handle, uplo, jb, A, shiftA + idx2D(j, j, lda), lda, strideA, iinfo,
+                    batch_count, scalars, (T*)work1, pivots));
 
                 // test for non-positive-definiteness.
                 ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info,
@@ -262,16 +263,16 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 if(j + jb < n)
                 {
                     // update trailing submatrix
-                    rocsolver_trsm_upper<BATCHED, STRIDED, T>(
+                    ROCBLAS_CHECK(rocsolver_trsm_upper<BATCHED, STRIDED, T>(
                         handle, rocblas_side_left, rocblas_operation_conjugate_transpose,
                         rocblas_diagonal_non_unit, jb, (n - j - jb), A, shiftA + idx2D(j, j, lda),
                         lda, strideA, A, shiftA + idx2D(j, j + jb, lda), lda, strideA, batch_count,
-                        optim_mem, work1, work2, work3, work4);
+                        optim_mem, work1, work2, work3, work4));
 
-                    rocblasCall_syrk_herk<BATCHED, T>(
+                    ROCBLAS_CHECK(rocblasCall_syrk_herk<BATCHED, T>(
                         handle, uplo, rocblas_operation_conjugate_transpose, n - j - jb, jb,
                         &s_minone, A, shiftA + idx2D(j, j + jb, lda), lda, strideA, &s_one, A,
-                        shiftA + idx2D(j + jb, j + jb, lda), lda, strideA, batch_count);
+                        shiftA + idx2D(j + jb, j + jb, lda), lda, strideA, batch_count));
                 }
                 j += nb;
             }
@@ -285,8 +286,9 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 jb = std::min(n - j, nb); // number of columns in the block
                 ROCSOLVER_LAUNCH_KERNEL(reset_info, gridReset, threads, 0, stream, iinfo,
                                         batch_count, 0);
-                rocsolver_potf2_template<T>(handle, uplo, jb, A, shiftA + idx2D(j, j, lda), lda,
-                                            strideA, iinfo, batch_count, scalars, (T*)work1, pivots);
+                ROCBLAS_CHECK(rocsolver_potf2_template<T>(
+                    handle, uplo, jb, A, shiftA + idx2D(j, j, lda), lda, strideA, iinfo,
+                    batch_count, scalars, (T*)work1, pivots));
 
                 // test for non-positive-definiteness.
                 ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info,
@@ -295,16 +297,16 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                 if(j + jb < n)
                 {
                     // update trailing submatrix
-                    rocsolver_trsm_lower<BATCHED, STRIDED, T>(
+                    ROCBLAS_CHECK(rocsolver_trsm_lower<BATCHED, STRIDED, T>(
                         handle, rocblas_side_right, rocblas_operation_conjugate_transpose,
                         rocblas_diagonal_non_unit, (n - j - jb), jb, A, shiftA + idx2D(j, j, lda),
                         lda, strideA, A, shiftA + idx2D(j + jb, j, lda), lda, strideA, batch_count,
-                        optim_mem, work1, work2, work3, work4);
+                        optim_mem, work1, work2, work3, work4));
 
-                    rocblasCall_syrk_herk<BATCHED, T>(
+                    ROCBLAS_CHECK(rocblasCall_syrk_herk<BATCHED, T>(
                         handle, uplo, rocblas_operation_none, n - j - jb, jb, &s_minone, A,
                         shiftA + idx2D(j + jb, j, lda), lda, strideA, &s_one, A,
-                        shiftA + idx2D(j + jb, j + jb, lda), lda, strideA, batch_count);
+                        shiftA + idx2D(j + jb, j + jb, lda), lda, strideA, batch_count));
                 }
                 j += nb;
             }
@@ -313,8 +315,9 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
         // factor last block
         if(j < n)
         {
-            rocsolver_potf2_template<T>(handle, uplo, n - j, A, shiftA + idx2D(j, j, lda), lda,
-                                        strideA, iinfo, batch_count, scalars, (T*)work1, pivots);
+            ROCBLAS_CHECK(rocsolver_potf2_template<T>(handle, uplo, n - j, A,
+                                                      shiftA + idx2D(j, j, lda), lda, strideA, iinfo,
+                                                      batch_count, scalars, (T*)work1, pivots));
             ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, j,
                                     batch_count);
         }
