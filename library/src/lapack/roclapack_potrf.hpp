@@ -150,8 +150,8 @@ void rocsolver_potrf_getMemorySize(const rocblas_int n,
         bool opt1 = false, opt2 = false, opt3 = false;
         size_t unused;
 
-        // size to store info about positiveness of each subblock and submatrix
-        *size_iinfo = sizeof(rocblas_int) * 2 * batch_count;
+        // size to store info about positiveness of each subblock
+        *size_iinfo = sizeof(rocblas_int) * batch_count;
 
         // requirements for calling POTRF recursively on submatrices
         rocsolver_potrf_getMemorySize<BATCHED, STRIDED, T>(n1, uplo, batch_count, size_scalars, &w11,
@@ -200,7 +200,8 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
                                                   void* work4,
                                                   T* pivots,
                                                   I* iinfo,
-                                                  bool optim_mem)
+                                                  bool optim_mem,
+                                                  const I row_offset = 0)
 {
     ROCSOLVER_ENTER("potrf_recursive", "uplo:", uplo, "n:", n, "shiftA:", shiftA, "lda:", lda,
                     "bc:", batch_count);
@@ -214,8 +215,10 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
     // UNBLOCKED ALGORITHM FOR SMALL MATRICES
     // -------------------------------------------------
     I nb = POTRF_BLOCKSIZE(T);
-    if(n <= POTRF_POTF2_SWITCHSIZE(T))
+    if(n <= POTRF_POTF2_SWITCHSIZE(T) && row_offset == 0)
     {
+        // only the first potf2 (when row_offset = 0) may modify info directly,
+        // others must go through iinfo and the chk_positive kernel
         return rocsolver_potf2_template<T>(handle, uplo, n, A, shiftA, lda, strideA, info,
                                            batch_count, scalars, (T*)work1, pivots);
     }
@@ -258,7 +261,7 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
 
                 // test for non-positive-definiteness.
                 ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info,
-                                        j, batch_count);
+                                        j + row_offset, batch_count);
 
                 if(j + jb < n)
                 {
@@ -292,7 +295,7 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
 
                 // test for non-positive-definiteness.
                 ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info,
-                                        j, batch_count);
+                                        j + row_offset, batch_count);
 
                 if(j + jb < n)
                 {
@@ -318,8 +321,8 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
             ROCBLAS_CHECK(rocsolver_potf2_template<T>(handle, uplo, n - j, A,
                                                       shiftA + idx2D(j, j, lda), lda, strideA, iinfo,
                                                       batch_count, scalars, (T*)work1, pivots));
-            ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, j,
-                                    batch_count);
+            ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info,
+                                    j + row_offset, batch_count);
         }
 
         return rocblas_status_success;
@@ -364,10 +367,8 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
 
             // find U22 given A22 = U22' * U22
             ROCBLAS_CHECK(rocsolver_potrf_recursive_template<BATCHED, STRIDED, T>(
-                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, iinfo, batch_count, scalars,
-                work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
-            ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, n1,
-                                    batch_count);
+                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, info, batch_count, scalars,
+                work1, work2, work3, work4, pivots, iinfo, optim_mem, n1));
         }
         else
         {
@@ -399,10 +400,8 @@ rocblas_status rocsolver_potrf_recursive_template(rocblas_handle handle,
 
             // find L22 given A22 = L22 * L22'
             ROCBLAS_CHECK(rocsolver_potrf_recursive_template<BATCHED, STRIDED, T>(
-                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, iinfo, batch_count, scalars,
-                work1, work2, work3, work4, pivots, iinfo + batch_count, optim_mem));
-            ROCSOLVER_LAUNCH_KERNEL(chk_positive<U>, gridReset, threads, 0, stream, iinfo, info, n1,
-                                    batch_count);
+                handle, uplo, n2, A, shiftA + A22_offset, lda, strideA, info, batch_count, scalars,
+                work1, work2, work3, work4, pivots, iinfo, optim_mem, n1));
         }
 
         return rocblas_status_success;
