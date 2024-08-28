@@ -13,6 +13,40 @@ Full documentation for rocSOLVER is available at the [rocSOLVER documentation](h
 ### Security
 
 
+## rocSOLVER 3.27.0 for ROCm 6.3.0
+### Added
+- 64-bit APIs for existing functions:
+    - LACGV_64
+    - LARF_64
+    - LARFG_64
+    - GEQR2_64 (with batched and strided\_batched versions)
+    - GEQRF_64 (with batched and strided\_batched versions)
+    - POTF2_64 (with batched and strided\_batched versions)
+    - POTRF_64 (with batched and strided\_batched versions)
+    - POTRS_64 (with batched and strided\_batched versions)
+
+### Optimized
+- Improved performance of LARFG, LARF, and downstream functions such as GEQR2 and GEQRF on wave64 architectures
+- Improved the performance of BDSQR and GESVD
+- Improved performance of STEDC and divide and conquer Eigensolvers
+
+### Changed
+- The rocsparse library is now an optional dependency at runtime. If rocsparse
+  is not available, rocsolver's sparse refactorization and solvers functions
+  will return `rocblas_status_not_implemented`.
+
+### Fixed
+- Fixed a memory allocation issue in SYEVJ that could cause failures on clients that manage their own memory.
+- Fixed a synchronizarion issue with SYEVJ that could led to convergence failure for large matrices.
+- Fixed a convergence issue in STEIN steaming from numerical orthogonality of the initial choice of eigenvectors.
+- Fixed synchronization issue in STEIN.
+
+### Known Issues
+- A known issue in STEBZ can lead to errors in routines based on Bisection to compute eigenvalues for
+  symmetric/hermitian matrices (e.g., SYEVX/HEEVX and SYGVX/HEGVX), as well as singular values (e.g.,
+  BDSVDX and GESVDX).
+
+
 ## rocSOLVER 3.26.0 for ROCm 6.2.0
 ### Added
 - 64-bit APIs for existing functions:

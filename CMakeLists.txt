@@ -48,7 +48,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21.0 AND CMAKE_VERSION VERSION_LESS 3.2
 endif()
 message(STATUS "Using CMake ${CMAKE_VERSION}")
 
-project(rocsolver LANGUAGES CXX)
+project(rocsolver LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -87,7 +87,7 @@ get_os_id(OS_ID)
 message(STATUS "OS detected is ${OS_ID}")
 
 # Versioning via rocm-cmake
-set(VERSION_STRING "3.27.0")
+set(VERSION_STRING "3.28.0")
 rocm_setup_version(VERSION ${VERSION_STRING})
 
 # Workaround until llvm and hip CMake modules fix symlink logic in their config files
@@ -125,9 +125,15 @@ if(BUILD_TESTING)
   enable_testing()
 endif()
 
+if(BUILD_SHARED_LIBS)
+  set(BUILD_WITH_SPARSE_DEFAULT OFF)
+else()
+  set(BUILD_WITH_SPARSE_DEFAULT ON)
+endif()
+
 option(BUILD_LIBRARY "Build rocSOLVER library" ON)
 option_opposite(BUILD_LIBRARY SKIP_LIBRARY)
-option(BUILD_WITH_SPARSE "Build rocSOLVER sparse re-factorization and solvers" ON)
+option(BUILD_WITH_SPARSE "Build with rocsparse available at build time" "${BUILD_WITH_SPARSE_DEFAULT}")
 option(BUILD_CLIENTS_TESTS "Build rocSOLVER test client" "${BUILD_TESTING}")
 option(BUILD_CLIENTS_BENCHMARKS "Build rocSOLVER benchmark client" OFF)
 option(BUILD_CLIENTS_SAMPLES "Build rocSOLVER samples" OFF)
@@ -165,6 +171,8 @@ if(NOT DEFINED AMDGPU_TARGETS)
       gfx1100
       gfx1101
       gfx1102
+      gfx1200
+      gfx1201
   )
   set(AMDGPU_TARGETS_INIT
     gfx900
@@ -187,7 +195,7 @@ find_package(hip REQUIRED CONFIG PATHS ${ROCM_PATH} /opt/rocm)
 find_package(rocblas REQUIRED CONFIG PATHS ${ROCM_PATH})
 get_imported_target_location(location roc::rocblas)
 message(STATUS "Found rocBLAS: ${location}")
-set(rocblas_minimum 4.2)
+set(rocblas_minimum 4.1)
 rocm_package_add_dependencies(SHARED_DEPENDS "rocblas >= ${rocblas_minimum}")
 rocm_package_add_rpm_dependencies(STATIC_DEPENDS "rocblas-static-devel >= ${rocblas_minimum}")
 rocm_package_add_deb_dependencies(STATIC_DEPENDS "rocblas-static-dev >= ${rocblas_minimum}")
@@ -200,11 +208,14 @@ if(BUILD_WITH_SPARSE)
   rocm_package_add_dependencies(SHARED_DEPENDS "rocsparse >= ${rocsparse_minimum}")
   rocm_package_add_rpm_dependencies(STATIC_DEPENDS "rocsparse-static-devel >= ${rocsparse_minimum}")
   rocm_package_add_deb_dependencies(STATIC_DEPENDS "rocsparse-static-dev >= ${rocsparse_minimum}")
+else()
+  list(APPEND CPACK_DEBIAN_RUNTIME_PACKAGE_RECOMMENDS "rocsparse")
+  list(APPEND CPACK_RPM_RUNTIME_PACKAGE_SUGGESTS "rocsparse")
 endif()
 
 find_package(rocprim REQUIRED CONFIG PATHS ${ROCM_PATH})
-rocm_package_add_rpm_dependencies(STATIC_DEPENDS "rocprim-devel")
-rocm_package_add_deb_dependencies(STATIC_DEPENDS "rocprim-dev")
+rocm_package_add_rpm_dependencies(STATIC_DEPENDS "rocprim-static-devel")
+rocm_package_add_deb_dependencies(STATIC_DEPENDS "rocprim-static-dev")
 
 add_subdirectory(common)
 
@@ -226,6 +237,8 @@ if(BUILD_CLIENTS_TESTS OR BUILD_CLIENTS_BENCHMARKS OR BUILD_CLIENTS_SAMPLES)
     endif()
   elseif(CLIENTS_OS STREQUAL "ubuntu" AND CLIENTS_OS_VERSION VERSION_GREATER_EQUAL "20.04")
     set(GFORTRAN_DEB "libgfortran5")
+  elseif(CLIENTS_OS STREQUAL "mariner")
+    set(GFORTRAN_RPM "gfortran")
   endif()
   rocm_package_setup_component(clients)
   if(BUILD_CLIENTS_TESTS)
