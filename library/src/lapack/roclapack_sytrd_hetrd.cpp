@@ -118,17 +118,17 @@ rocblas_status rocsolver_ssytrd(rocblas_handle handle,
     return rocsolver::rocsolver_sytrd_hetrd_impl<float>(handle, uplo, n, A, lda, D, E, tau);
 }
 
-rocblas_status rocsolver_dsytrd(rocblas_handle handle,
-                                const rocblas_fill uplo,
-                                const rocblas_int n,
-                                double* A,
-                                const rocblas_int lda,
-                                double* D,
-                                double* E,
-                                double* tau)
-{
-    return rocsolver::rocsolver_sytrd_hetrd_impl<double>(handle, uplo, n, A, lda, D, E, tau);
-}
+// rocblas_status rocsolver_dsytrd(rocblas_handle handle,
+//                                 const rocblas_fill uplo,
+//                                 const rocblas_int n,
+//                                 double* A,
+//                                 const rocblas_int lda,
+//                                 double* D,
+//                                 double* E,
+//                                 double* tau)
+// {
+//     return rocsolver::rocsolver_sytrd_hetrd_impl<double>(handle, uplo, n, A, lda, D, E, tau);
+// }
 
 rocblas_status rocsolver_chetrd(rocblas_handle handle,
                                 const rocblas_fill uplo,

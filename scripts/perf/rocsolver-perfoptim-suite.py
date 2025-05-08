@@ -43,6 +43,16 @@ from subprocess import Popen, PIPE
 common = '--iters 3 --perf 1' #always do 3 iterations in perf mode
 
 """
+SYTRD tests are run, for the given precision and sizes
+"""
+def sytrd_hetrd_suite(*, suite, precision, sizenormal, sizebatch):
+    fn = 'sytrd' if precision == 's' or precision == 'd' else 'hetrd'
+    size = sizenormal
+    for s in size:
+        row = {'name': precision+suite, 'name_test': suite, 'function': fn, 'precision': precision, 'n': s}
+        yield (row, s, f'-f {fn} -r {precision} -n {s} --uplo L {common}')
+
+"""
 SYEVD tests are run, for the given precision and sizes, with vectors and without vectors
 """
 def syevd_heevd_suite(*, suite, precision, sizenormal, sizebatch):
@@ -183,6 +193,7 @@ suites = {
   'gesvdjBatch': gesvdjBatch_suite,
   'potrf': potrf_suite,
   'potrfBatch': potrfBatch_suite,
+  'sytrd': sytrd_hetrd_suite,
   'geqrf': geqrf_suite}
 
 
