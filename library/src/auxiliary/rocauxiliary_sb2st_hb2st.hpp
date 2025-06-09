@@ -39,12 +39,45 @@
 #include "lib_device_helpers.hpp"
 #include "rocsolver_hybrid_storage.hpp"
 
+#include "hip/hip_cooperative_groups.h"
+
 ROCSOLVER_BEGIN_NAMESPACE
 
 // Number of threads in x and y
 // Reductions in larfg and larf must be updated if DIMX is changed
 #define DIMX 32
 #define DIMY 32
+
+#ifndef LAUNCH_CHECK
+#define LAUNCH_CHECK(fcn)                                                                  \
+    {                                                                                      \
+        auto const istat = (fcn);                                                          \
+        bool const isok = (istat == hipSuccess);                                           \
+        if(!isok)                                                                          \
+        {                                                                                  \
+            std::cerr << "Kernel launch error: " << hipGetErrorString(istat) << std::endl; \
+        }                                                                                  \
+        assert(isok);                                                                      \
+    }
+#endif
+
+namespace cg = cooperative_groups;
+
+static int get_num_cu(int deviceId = 0)
+{
+    int ival = 0;
+    auto const attr = hipDeviceAttributeMultiprocessorCount;
+    HIP_CHECK(hipDeviceGetAttribute(&ival, attr, deviceId));
+    return (ival);
+}
+
+static int get_lds_size(int deviceId = 0)
+{
+    int ival = 0;
+    auto const attr = hipDeviceAttributeMaxSharedMemoryPerBlock;
+    HIP_CHECK(hipDeviceGetAttribute(&ival, attr, deviceId));
+    return (ival);
+}
 
 template <typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
 __device__ __inline__ T shift_left(T& value, int lane_delta)
@@ -392,22 +425,24 @@ ROCSOLVER_KERNEL void sb2st_hb2st_kernel(rocblas_int n,
 
    Sweep n-1 is complete after 1 step, therefore the total number of steps is 3*(n-1)+1 */
 template <typename T, typename S>
-ROCSOLVER_KERNEL void sb2st_hb2st_step_kernel(rocblas_int n,
-                                              rocblas_int nb,
-                                              rocblas_int step,
-                                              T* AA,
-                                              rocblas_stride shiftA,
-                                              rocblas_int lda,
-                                              rocblas_stride strideA,
-                                              S* DD,
-                                              rocblas_stride strideD,
-                                              S* EE,
-                                              rocblas_stride strideE)
+__device__ void sb2st_hb2st_step_kernel_body(rocblas_int n,
+                                             rocblas_int nb,
+                                             rocblas_int step,
+                                             T* AA,
+                                             rocblas_stride shiftA,
+                                             rocblas_int lda,
+                                             rocblas_stride strideA,
+                                             S* DD,
+                                             rocblas_stride strideD,
+                                             S* EE,
+                                             rocblas_stride strideE,
+                                             rocblas_int sid,
+                                             rocblas_int bid)
 {
     const rocblas_int xid = threadIdx.x;
     const rocblas_int yid = threadIdx.y;
-    const rocblas_int sid = blockIdx.y;
-    const rocblas_int bid = blockIdx.z;
+    // const rocblas_int sid = blockIdx.y;
+    // const rocblas_int bid = blockIdx.z;
 
     assert(blockDim.x == SB2ST_HB2ST_MAX_THDS);
 
@@ -432,6 +467,88 @@ ROCSOLVER_KERNEL void sb2st_hb2st_step_kernel(rocblas_int n,
 
     // execute sweep step
     sb2st_hb2st_sweep_step<T, S>(xid, yid, n, nb, s, sm_i, A, lda, D, E, housev, reduct);
+}
+
+template <typename T, typename S>
+ROCSOLVER_KERNEL void sb2st_hb2st_step_kernel(rocblas_int n,
+                                              rocblas_int nb,
+                                              rocblas_int step,
+                                              T* AA,
+                                              rocblas_stride shiftA,
+                                              rocblas_int lda,
+                                              rocblas_stride strideA,
+                                              S* DD,
+                                              rocblas_stride strideD,
+                                              S* EE,
+                                              rocblas_stride strideE)
+{
+    const rocblas_int sid = blockIdx.y;
+    const rocblas_int bid = blockIdx.z;
+
+    sb2st_hb2st_step_kernel_body<T, S>(n, nb, step,
+
+                                       AA, shiftA, lda, strideA,
+
+                                       DD, strideD, EE, strideE,
+
+                                       sid, bid);
+}
+
+template <typename T, typename S>
+ROCSOLVER_KERNEL void sb2st_hb2st_step_coop_kernel(rocblas_int n,
+                                                   rocblas_int nb,
+                                                   T* AA,
+                                                   rocblas_stride shiftA,
+                                                   rocblas_int lda,
+                                                   rocblas_stride strideA,
+                                                   S* DD,
+                                                   rocblas_stride strideD,
+                                                   S* EE,
+                                                   rocblas_stride strideE,
+
+                                                   rocblas_int num_steps,
+                                                   rocblas_int sweeps_in_parallel,
+                                                   rocblas_int batch_count)
+{
+    rocblas_int const num_cu = (gridDim.x * gridDim.y) * gridDim.z;
+    rocblas_int const iblock
+        = blockIdx.x + blockIdx.y * gridDim.x + blockIdx.z * (gridDim.x * gridDim.y);
+
+    bool const is_large_batch_count = (batch_count >= num_cu);
+
+    // --------------------------------------------------
+    // if batch_count is large, just use one thread block
+    // for each batch entry
+    // --------------------------------------------------
+
+    rocblas_int bid_start = (is_large_batch_count) ? iblock : 0;
+    rocblas_int bid_inc = (is_large_batch_count) ? num_cu : 1;
+
+    rocblas_int sid_start = (is_large_batch_count) ? 0 : iblock;
+    rocblas_int sid_inc = (is_large_batch_count) ? 1 : num_cu;
+
+    for(rocblas_int step = 0; step < num_steps; step++)
+    {
+        for(rocblas_int bid = bid_start; bid < batch_count; bid += bid_inc)
+        {
+            for(rocblas_int sid = sid_start; sid < sweeps_in_parallel; sid += sid_inc)
+            {
+                sb2st_hb2st_step_kernel_body<T, S>(n, nb, step,
+
+                                                   AA, shiftA, lda, strideA,
+
+                                                   DD, strideD, EE, strideE,
+
+                                                   sid, bid);
+            }
+        }
+
+        // --------------------------------
+        // synchronize grid of thread blocks
+        // without another kernel launch
+        // --------------------------------
+        cg::this_grid().sync();
+    }
 }
 
 template <typename T, typename S>
@@ -568,12 +685,36 @@ rocblas_status rocsolver_sb2st_hb2st_template(rocblas_handle handle,
     }
     else
     {
-        for(rocblas_int step = 0; step < num_steps; step++)
+        bool const use_coop_kernel = true;
+        if(use_coop_kernel)
         {
-            ROCSOLVER_LAUNCH_KERNEL(sb2st_hb2st_step_kernel<T>,
-                                    dim3(1, sweeps_in_parallel, batch_count), dim3(DIMX, DIMY, 1),
-                                    lmemsize, stream, n, nb, step, A, shiftA, lda, strideA, D,
-                                    strideD, E, strideE);
+            void* args[] = {(void*)&n,          (void*)&nb,
+                            (void*)&A,          (void*)&shiftA,
+                            (void*)&lda,        (void*)&strideA,
+                            (void*)&D,          (void*)&strideD,
+                            (void*)&E,          (void*)&strideE,
+
+                            (void*)&num_steps,  (void*)&sweeps_in_parallel,
+                            (void*)&batch_count};
+
+            rocblas_int const num_cu = get_num_cu();
+
+            printf("n = %d, num_steps = %d, sweeps_in_parallel = %d\n", n, num_steps,
+                   sweeps_in_parallel);
+
+            LAUNCH_CHECK(hipLaunchCooperativeKernel((void*)(sb2st_hb2st_step_coop_kernel<T, S>),
+                                                    dim3(1, num_cu, 1), dim3(BS2, BS2, 1), args,
+                                                    lmemsize, stream));
+        }
+        else
+        {
+            for(rocblas_int step = 0; step < num_steps; step++)
+            {
+                ROCSOLVER_LAUNCH_KERNEL(sb2st_hb2st_step_kernel<T>,
+                                        dim3(1, sweeps_in_parallel, batch_count),
+                                        dim3(DIMX, DIMY, 1), lmemsize, stream, n, nb, step, A,
+                                        shiftA, lda, strideA, D, strideD, E, strideE);
+            }
         }
     }
 
