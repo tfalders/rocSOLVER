@@ -25,27 +25,27 @@
  * SUCH DAMAGE.
  * *************************************************************************/
 
- #pragma once
+#pragma once
 
- #include "lapack/roclapack_gelqf.hpp"
- #include "lapack/roclapack_geqrf.hpp"
- #include "rocblas.hpp"
- #include "rocsolver/rocsolver.h"
+#include "lapack/roclapack_gelqf.hpp"
+#include "lapack/roclapack_geqrf.hpp"
+#include "rocblas.hpp"
+#include "rocsolver/rocsolver.h"
 
 ROCSOLVER_BEGIN_NAMESPACE
 
 template <typename T, typename U>
 ROCSOLVER_KERNEL void sy2sb_updateAV_kernel(const rocblas_int inc,
-                               const rocblas_int nb,
-                               const rocblas_int m,
-                               const rocblas_int n,
-                               U A,
-                               const rocblas_int shiftA,
-                               const rocblas_int lda,
-                               const rocblas_stride strideA,
-                               T* V,
-                               const rocblas_int ldv,
-                               const rocblas_stride strideV)
+                                            const rocblas_int nb,
+                                            const rocblas_int m,
+                                            const rocblas_int n,
+                                            U A,
+                                            const rocblas_int shiftA,
+                                            const rocblas_int lda,
+                                            const rocblas_stride strideA,
+                                            T* V,
+                                            const rocblas_int ldv,
+                                            const rocblas_stride strideV)
 {
     const auto b = hipBlockIdx_z;
     const auto i = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
@@ -127,7 +127,7 @@ void rocsolver_sy2sb_he2hb_getMemorySize(const rocblas_int n,
     *size_workArr = std::max(*size_workArr, wa);
 
     // extra space for larft calls
-    rocsolver_larft_getMemorySize<BATCHED, T>(n-k, k, batch_count, size_scalars, &w, &wa);
+    rocsolver_larft_getMemorySize<BATCHED, T>(n - nb, nb, batch_count, size_scalars, &w, &wa);
     *size_work = std::max(*size_work, w);
     *size_workArr = std::max(*size_workArr, wa);
 }
@@ -222,47 +222,48 @@ rocblas_status rocsolver_sy2sb_he2hb_template(rocblas_handle handle,
     {
         rocblas_int qm = nk - i;
         rocblas_int qn = std::min(nb, qm);
-        rocblas_int endb = std::min(i+k, nk);
+        rocblas_int endb = std::min(i + k, nk);
         rocblas_int kk = qn;
         rocblas_int j, inc, qnn, qmm;
 
         // keep copy of trailing matrix in Acpy to update V and W
         rocblas_int cpy_blks = (qm - 1) / 32 + 1;
-        ROCSOLVER_LAUNCH_KERNEL((copy_mat<T>), dim3(cpy_blks, cpy_blks, batch_count),
-                                dim3(32, 32), 0, stream, qm, qm,
-                                A, shiftA + idx2D(i + nb, i + nb, lda), lda, strideA,
-                                Acpy, 0, ldacpy, strideAcpy);
+        ROCSOLVER_LAUNCH_KERNEL((copy_mat<T>), dim3(cpy_blks, cpy_blks, batch_count), dim3(32, 32),
+                                0, stream, qm, qm, A, shiftA + idx2D(i + nb, i + nb, lda), lda,
+                                strideA, Acpy, 0, ldacpy, strideAcpy);
 
         // reduce first panel in block
-        rocsolver_geqrf_template<BATCHED, STRIDED>(handle, qm, nb, A, shiftA + idx2D(i + nb, i, lda), lda, strideA,
-            tau, strideP, batch_count, scalars, work, workT, workZ, workArr);
+        rocsolver_geqrf_template<BATCHED, STRIDED>(handle, qm, nb, A, shiftA + idx2D(i + nb, i, lda),
+                                                   lda, strideA, tau, strideP, batch_count, scalars,
+                                                   work, workT, workZ, workArr);
 
         // Form corresponding matrix T
-        rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise, qm, qn, A, shiftA + idx2D(i + nb, i, lda),
-            lda, strideA, tau, strideP, workT, ldt, strideT, batch_count, scalars, work, workArr);
+        rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise, qm, qn,
+                                    A, shiftA + idx2D(i + nb, i, lda), lda, strideA, tau, strideP,
+                                    workT, ldt, strideT, batch_count, scalars, work, workArr);
 
         // update A and V
         rocblas_int mblks = (qm - 1) / 32 + 1;
         rocblas_int nblks = (nb - 1) / 32 + 1;
         ROCSOLVER_LAUNCH_KERNEL((sy2sb_updateAV_kernel), dim3(mblks, nblks, batch_count),
-                                dim3(32, 32), 0, stream, 0, nb, qm, nb,
-                                A, shiftA + idx2D(i, i, lda), lda, strideA,
-                                V + idx2D(i, i, ldv), ldv, strideV);
+                                dim3(32, 32), 0, stream, 0, nb, qm, nb, A, shiftA + idx2D(i, i, lda),
+                                lda, strideA, V + idx2D(i, i, ldv), ldv, strideV);
 
         // Update W
         rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qn, qn, &one, V,
-            idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt, strideT, &zero, W, idx2D(i, i, ldw), ldw,
-            strideW, batch_count, workArr);
+                       idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt, strideT, &zero, W,
+                       idx2D(i, i, ldw), ldw, strideW, batch_count, workArr);
 
         // prepare symmetric rank update
-        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qn, qm, &one, Acpy, 0,
-            ldacpy, strideAcpy, W, idx2D(i, i, ldw), ldw, strideW, &zero, workZ, 0, ldz, strideZ, batch_count, workArr);
-        rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none, qn, qn, qm, &one, W,
-            idx2D(i, i, ldw), ldw, strideW, workZ, 0, ldz, strideZ, &zero, workT, 0, ldt,
-            strideT, batch_count, workArr);
-        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qn, qn, &neghalf, V,
-            idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt, strideT, &one, workZ, 0, ldz,
-            strideZ, batch_count, workArr);
+        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qn, qm, &one,
+                       Acpy, 0, ldacpy, strideAcpy, W, idx2D(i, i, ldw), ldw, strideW, &zero, workZ,
+                       0, ldz, strideZ, batch_count, workArr);
+        rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none, qn,
+                       qn, qm, &one, W, idx2D(i, i, ldw), ldw, strideW, workZ, 0, ldz, strideZ,
+                       &zero, workT, 0, ldt, strideT, batch_count, workArr);
+        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qn, qn, &neghalf,
+                       V, idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt, strideT, &one, workZ, 0,
+                       ldz, strideZ, batch_count, workArr);
 
         // reduce all other panels in block
         j = i + nb;
@@ -274,47 +275,53 @@ rocblas_status rocsolver_sy2sb_he2hb_template(rocblas_handle handle,
             kk += qnn;
 
             // update current panel
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose, qmm + nb, nb, inc, &negone, V,
-                idx2D(i+inc-nb, i, ldv), ldv, strideV, workZ, inc-nb, ldz, strideZ, &one, A, shiftA + idx2D(j, j, lda), lda,
-                strideA, batch_count, workArr);
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose, qmm + nb, nb, inc, &negone, workZ,
-                inc-nb, ldz, strideZ, V, idx2D(i+inc-nb, i, ldv), ldv, strideV, &one, A, shiftA + idx2D(j, j, lda), lda,
-                strideA, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose,
+                           qmm + nb, nb, inc, &negone, V, idx2D(i + inc - nb, i, ldv), ldv, strideV,
+                           workZ, inc - nb, ldz, strideZ, &one, A, shiftA + idx2D(j, j, lda), lda,
+                           strideA, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose,
+                           qmm + nb, nb, inc, &negone, workZ, inc - nb, ldz, strideZ, V,
+                           idx2D(i + inc - nb, i, ldv), ldv, strideV, &one, A,
+                           shiftA + idx2D(j, j, lda), lda, strideA, batch_count, workArr);
 
             // reduce current panel
-            rocsolver_geqrf_template<BATCHED, STRIDED>(handle, qmm, nb, A, shiftA + idx2D(j + nb, j, lda), lda, strideA,
-            tau, strideP, batch_count, scalars, work, workT, workZ, workArr);
+            rocsolver_geqrf_template<BATCHED, STRIDED>(
+                handle, qmm, nb, A, shiftA + idx2D(j + nb, j, lda), lda, strideA, tau, strideP,
+                batch_count, scalars, work, workT, workZ, workArr);
 
             // Form corresponding matrix T
-            rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise, qmm, qnn, A, shiftA + idx2D(j + nb, j, lda),
-                lda, strideA, tau, strideP, workT, ldt, strideT, batch_count, scalars, work, workArr);
+            rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise, qmm,
+                                        qnn, A, shiftA + idx2D(j + nb, j, lda), lda, strideA, tau,
+                                        strideP, workT, ldt, strideT, batch_count, scalars, work,
+                                        workArr);
 
             // update A and V
             ROCSOLVER_LAUNCH_KERNEL((sy2sb_updateAV_kernel), dim3(mblks, nblks, batch_count),
-                                dim3(32, 32), 0, stream, inc, nb, qm, nb,
-                                A, shiftA + idx2D(i, i, lda), lda, strideA,
-                                V + idx2D(i, i, ldv), ldv, strideV);
+                                    dim3(32, 32), 0, stream, inc, nb, qm, nb, A,
+                                    shiftA + idx2D(i, i, lda), lda, strideA, V + idx2D(i, i, ldv),
+                                    ldv, strideV);
 
             // update W
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qnn, qnn, &one, V,
-                idx2D(i, j, ldv), ldv, strideV, workT, 0, ldt, strideT, &zero, W, idx2D(i, j, ldw), ldw,
-                strideW, batch_count, workArr);
-            rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none, inc, qnn, qm, &one, V,
-                idx2D(i, i, ldv), ldv, strideV, W, idx2D(i, j, ldw), ldw, strideW, &zero, workZ, 0, ldz,
-                strideZ, batch_count, workArr);
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qnn, inc, &negone, W,
-                idx2D(i, i, ldv), ldw, strideW, workZ, 0, ldz, strideZ, &one, W, idx2D(i, j, ldw), ldw,
-                strideW, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qnn, qnn,
+                           &one, V, idx2D(i, j, ldv), ldv, strideV, workT, 0, ldt, strideT, &zero,
+                           W, idx2D(i, j, ldw), ldw, strideW, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none,
+                           inc, qnn, qm, &one, V, idx2D(i, i, ldv), ldv, strideV, W, idx2D(i, j, ldw),
+                           ldw, strideW, &zero, workZ, 0, ldz, strideZ, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, qnn, inc,
+                           &negone, W, idx2D(i, i, ldv), ldw, strideW, workZ, 0, ldz, strideZ, &one,
+                           W, idx2D(i, j, ldw), ldw, strideW, batch_count, workArr);
 
             // prepare symmetric rank update
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, inc+qnn, qm, &one, Acpy, 0,
-                ldacpy, strideAcpy, W, idx2D(i, i, ldw), ldw, strideW, &zero, workZ, 0, ldz, strideZ, batch_count, workArr);
-            rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none, inc+qnn, inc+qnn, qm, &one, W,
-                idx2D(i, i, ldw), ldw, strideW, workZ, 0, ldz, strideZ, &zero, workT, 0, ldt,
-                strideT, batch_count, workArr);
-            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, inc+qnn, inc+qnn, &neghalf, V,
-                idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt, strideT, &one, workZ, 0, ldz,
-                strideZ, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, inc + qnn,
+                           qm, &one, Acpy, 0, ldacpy, strideAcpy, W, idx2D(i, i, ldw), ldw, strideW,
+                           &zero, workZ, 0, ldz, strideZ, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_conjugate_transpose, rocblas_operation_none,
+                           inc + qnn, inc + qnn, qm, &one, W, idx2D(i, i, ldw), ldw, strideW, workZ,
+                           0, ldz, strideZ, &zero, workT, 0, ldt, strideT, batch_count, workArr);
+            rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_none, qm, inc + qnn,
+                           inc + qnn, &neghalf, V, idx2D(i, i, ldv), ldv, strideV, workT, 0, ldt,
+                           strideT, &one, workZ, 0, ldz, strideZ, batch_count, workArr);
 
             j += nb;
         }
@@ -322,12 +329,14 @@ rocblas_status rocsolver_sy2sb_he2hb_template(rocblas_handle handle,
         // update trailing matrix
         inc = j - i;
         qmm = nk - j;
-        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose, qmm + nb, qmm + nb, kk, &negone, V,
-                idx2D(i+inc-nb, i, ldv), ldv, strideV, workZ, inc-nb, ldz, strideZ, &one, A, shiftA + idx2D(j, j, lda), lda,
-                strideA, batch_count, workArr);
-        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose, qmm + nb, qmm + nb, kk, &negone, workZ,
-                inc-nb, ldz, strideZ, V, idx2D(i+inc-nb, i, ldv), ldv, strideV, &one, A, shiftA + idx2D(j, j, lda), lda,
-                strideA, batch_count, workArr);
+        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose,
+                       qmm + nb, qmm + nb, kk, &negone, V, idx2D(i + inc - nb, i, ldv), ldv,
+                       strideV, workZ, inc - nb, ldz, strideZ, &one, A, shiftA + idx2D(j, j, lda),
+                       lda, strideA, batch_count, workArr);
+        rocsolver_gemm(handle, rocblas_operation_none, rocblas_operation_conjugate_transpose,
+                       qmm + nb, qmm + nb, kk, &negone, workZ, inc - nb, ldz, strideZ, V,
+                       idx2D(i + inc - nb, i, ldv), ldv, strideV, &one, A,
+                       shiftA + idx2D(j, j, lda), lda, strideA, batch_count, workArr);
     }
 
     rocblas_set_pointer_mode(handle, old_mode);
