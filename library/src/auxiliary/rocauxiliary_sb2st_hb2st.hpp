@@ -41,6 +41,107 @@
 
 ROCSOLVER_BEGIN_NAMESPACE
 
+template <typename T, typename I, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
+static void call_larfg(I n, T& alpha, T* x, I incx, T& tau)
+{
+    // dot
+    T norm2 = alpha * alpha;
+    for(I i = 0; i < n - 1; i++)
+        norm2 += x[i * incx] * x[i * incx];
+
+    if(norm2 > 0)
+    {
+        T norm = alpha >= 0 ? -std::sqrt(norm2) : std::sqrt(norm2);
+
+        T s = (T)(1.0 / (alpha - norm));
+        tau = (norm - alpha) / norm;
+        alpha = norm;
+
+        call_scal(n - 1, s, x[0], incx);
+    }
+    else
+    {
+        tau = 0;
+    }
+}
+
+template <typename T, typename I, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
+static void call_larfg(I n, T& alpha, T* x, I incx, T& tau)
+{
+    using S = decltype(std::real(T{}));
+
+    // dot
+    T norm2 = alpha * conj(alpha);
+    for(I i = 0; i < n - 1; i++)
+        norm2 += x[i * incx] * conj(x[i * incx]);
+
+    S ar = alpha.real();
+    S ai = alpha.imag();
+
+    if(norm2.real() > 0 || ai > 0)
+    {
+        S norm = ar >= 0 ? -std::sqrt(norm2.real()) : std::sqrt(norm2.real());
+
+        // scaling factor
+        S r = (ar - norm) * (ar - norm) + ai * ai;
+        S rr = (ar - norm) / r;
+        S ri = -ai / r;
+        T s = rocblas_complex_num<S>(rr, ri);
+
+        // tau
+        rr = (norm - ar) / norm;
+        ri = -ai / norm;
+        tau = rocblas_complex_num<S>(rr, ri);
+
+        // alpha
+        alpha = norm;
+
+        call_scal(n - 1, s, x[0], incx);
+    }
+    else
+    {
+        tau = 0;
+    }
+}
+
+template <typename T, typename I>
+static void call_larf(rocblas_side side, I m, I n, T* v, I incv, T tau, T* C, I ldc, T* work)
+{
+    if(tau == 0)
+        return;
+
+    if(side == rocblas_side_left)
+    {
+        // gemv
+        for(rocblas_int i = 0; i < n; i++)
+        {
+            work[i] = 0;
+            for(rocblas_int j = 0; j < m; j++)
+                work[i] += conj(C[j + i * ldc]) * v[j * incv];
+        }
+
+        // ger
+        for(rocblas_int i = 0; i < m; i++)
+            for(rocblas_int j = 0; j < n; j++)
+                C[i + j * ldc] -= tau * v[i * incv] * conj(work[j]);
+    }
+    else
+    {
+        // gemv
+        for(rocblas_int i = 0; i < m; i++)
+        {
+            work[i] = 0;
+            for(rocblas_int j = 0; j < n; j++)
+                work[i] += C[i + j * ldc] * v[j * incv];
+        }
+
+        // ger
+        for(rocblas_int i = 0; i < m; i++)
+            for(rocblas_int j = 0; j < n; j++)
+                C[i + j * ldc] -= tau * conj(v[j * incv]) * work[i];
+    }
+}
+
 template <typename T, typename S>
 void run_sb2st_hb2st(rocblas_int n, rocblas_int nb, T* A, rocblas_int lda, S* D, S* E, T* work)
 {
@@ -65,6 +166,8 @@ void run_sb2st_hb2st(rocblas_int n, rocblas_int nb, T* A, rocblas_int lda, S* D,
                   A + sm_i + sm_i * lda, lda, work);
         call_larf(rocblas_side_right, mm, mm, A + sm_i + s * lda, incx, tau, A + sm_i + sm_i * lda,
                   lda, work);
+
+        // copy transpose blocks
         for(rocblas_int i = su_i; i < su_e; i++)
             for(rocblas_int j = sm_i; j < sm_e; j++)
                 A[i + j * lda] = conj(A[j + i * lda]);
@@ -101,6 +204,8 @@ void run_sb2st_hb2st(rocblas_int n, rocblas_int nb, T* A, rocblas_int lda, S* D,
                       A + sm_i + (sd_i + 1) * lda, lda, work);
             call_larf(rocblas_side_right, mm, mm, A + sm_i + s * lda, incx, tau,
                       A + sm_i + sm_i * lda, lda, work);
+
+            // copy transpose blocks
             for(rocblas_int i = su_i; i < su_e; i++)
                 for(rocblas_int j = sm_i; j < sm_e; j++)
                     A[i + j * lda] = conj(A[j + i * lda]);
