@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
- * Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2024-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,6 +44,25 @@ ROCSOLVER_BEGIN_NAMESPACE
     the library size.
 *************************************************************/
 
+template <typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
+__device__ __inline__ T shift_left(T& value, int lane_delta)
+{
+    T r = value;
+    r = __shfl_down(r, lane_delta);
+    return r;
+}
+
+template <typename T, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
+__device__ __inline__ T shift_left(T& value, int lane_delta)
+{
+    using S = decltype(std::real(T{}));
+    S r = value.real();
+    S i = value.imag();
+    r = __shfl_down(r, lane_delta);
+    i = __shfl_down(i, lane_delta);
+    return rocblas_complex_num<S>(r, i);
+}
+
 template <typename T, typename I, typename U, typename UB>
 ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
     larfg_kernel_small(const I n,
@@ -60,8 +79,8 @@ ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
                        T* tauA,
                        const rocblas_stride strideP)
 {
-    I bid = hipBlockIdx_x;
-    I tid = hipThreadIdx_x;
+    I bid = blockIdx.x;
+    I tid = threadIdx.x;
 
     // select batch instance
     T* a = load_ptr_batch<T>(alpha, bid, shiftA, strideA);
@@ -71,15 +90,36 @@ ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
     T* b = beta ? load_ptr_batch<T>(beta, bid, shiftB, strideB) : nullptr;
 
     // shared variables
-    __shared__ T sval[LARFG_SSKER_THREADS];
+    __shared__ T sval[LARFG_SSKER_THREADS / warpSize];
     __shared__ T sh_x[LARFG_SSKER_MAX_N];
 
-    // load x into shared memory
+    // load x into shared memory and accumulate squared entries
+    T norm2 = 0;
     for(I i = tid; i < n - 1; i += LARFG_SSKER_THREADS)
-        sh_x[i] = x[i * incX];
+    {
+        T temp = x[i * incX];
+        norm2 += temp * conj(temp);
+        sh_x[i] = temp;
+    }
 
-    // find squared norm of x
-    dot<LARFG_SSKER_THREADS, true, T>(tid, n - 1, sh_x, 1, sh_x, 1, sval);
+    // reduce squared entries to find squared norm of x
+    norm2 += shift_left(norm2, 1);
+    norm2 += shift_left(norm2, 2);
+    norm2 += shift_left(norm2, 4);
+    norm2 += shift_left(norm2, 8);
+    norm2 += shift_left(norm2, 16);
+    if(warpSize > 32)
+        norm2 += shift_left(norm2, 32);
+    if(tid % warpSize == 0)
+        sval[tid / warpSize] = norm2;
+    __syncthreads();
+    if(tid == 0)
+    {
+        for(I k = 1; k < LARFG_SSKER_THREADS / warpSize; k++)
+            norm2 += sval[k];
+        sval[0] = norm2;
+    }
+    __syncthreads();
 
     // set tau, beta, and put scaling factor into sval[0]
     if(tid == 0)
