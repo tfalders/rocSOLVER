@@ -63,21 +63,20 @@ __device__ __inline__ T shift_left(T& value, int lane_delta)
     return rocblas_complex_num<S>(r, i);
 }
 
-template <typename T, typename I, typename U, typename UB>
-ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
-    larfg_kernel_small(const I n,
-                       U alpha,
-                       const rocblas_stride shiftA,
-                       const rocblas_stride strideA,
-                       UB beta,
-                       const rocblas_stride shiftB,
-                       const rocblas_stride strideB,
-                       U xx,
-                       const rocblas_stride shiftX,
-                       const I incX,
-                       const rocblas_stride strideX,
-                       T* tauA,
-                       const rocblas_stride strideP)
+template <int MAX_THDS, typename T, typename I, typename U, typename UB>
+ROCSOLVER_KERNEL void __launch_bounds__(MAX_THDS) larfg_kernel_small(const I n,
+                                                                     U alpha,
+                                                                     const rocblas_stride shiftA,
+                                                                     const rocblas_stride strideA,
+                                                                     UB beta,
+                                                                     const rocblas_stride shiftB,
+                                                                     const rocblas_stride strideB,
+                                                                     U xx,
+                                                                     const rocblas_stride shiftX,
+                                                                     const I incX,
+                                                                     const rocblas_stride strideX,
+                                                                     T* tauA,
+                                                                     const rocblas_stride strideP)
 {
     I bid = blockIdx.x;
     I tid = threadIdx.x;
@@ -90,12 +89,12 @@ ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
     T* b = beta ? load_ptr_batch<T>(beta, bid, shiftB, strideB) : nullptr;
 
     // shared variables
-    __shared__ T sval[LARFG_SSKER_THREADS / warpSize];
+    __shared__ T sval[MAX_THDS / warpSize];
     __shared__ T sh_x[LARFG_SSKER_MAX_N];
 
     // load x into shared memory and accumulate squared entries
     T norm2 = 0;
-    for(I i = tid; i < n - 1; i += LARFG_SSKER_THREADS)
+    for(I i = tid; i < n - 1; i += MAX_THDS)
     {
         T temp = x[i * incX];
         norm2 += temp * conj(temp);
@@ -115,7 +114,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
     __syncthreads();
     if(tid == 0)
     {
-        for(I k = 1; k < LARFG_SSKER_THREADS / warpSize; k++)
+        for(I k = 1; k < MAX_THDS / warpSize; k++)
             norm2 += sval[k];
         sval[0] = norm2;
     }
@@ -127,7 +126,7 @@ ROCSOLVER_KERNEL void __launch_bounds__(LARFG_SSKER_THREADS)
     __syncthreads();
 
     // scale x by scaling factor
-    for(I i = tid; i < n - 1; i += LARFG_SSKER_THREADS)
+    for(I i = tid; i < n - 1; i += MAX_THDS)
         x[i * incX] = sh_x[i] * sval[0];
 }
 
@@ -152,14 +151,33 @@ rocblas_status larfg_run_small(rocblas_handle handle,
                                const rocblas_stride strideP,
                                const I batch_count)
 {
-    dim3 grid(batch_count, 1, 1);
-    dim3 block(LARFG_SSKER_THREADS, 1, 1);
-
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
-    ROCSOLVER_LAUNCH_KERNEL((larfg_kernel_small<T>), grid, block, 0, stream, n, alpha, shiftA,
-                            strideA, beta, shiftB, strideB, x, shiftX, incX, strideX, tau, strideP);
+    if(n <= 64)
+    {
+        dim3 grid(batch_count, 1, 1);
+        dim3 block(64, 1, 1);
+        ROCSOLVER_LAUNCH_KERNEL((larfg_kernel_small<64, T>), grid, block, 0, stream, n, alpha,
+                                shiftA, strideA, beta, shiftB, strideB, x, shiftX, incX, strideX,
+                                tau, strideP);
+    }
+    else if(n <= 128)
+    {
+        dim3 grid(batch_count, 1, 1);
+        dim3 block(128, 1, 1);
+        ROCSOLVER_LAUNCH_KERNEL((larfg_kernel_small<128, T>), grid, block, 0, stream, n, alpha,
+                                shiftA, strideA, beta, shiftB, strideB, x, shiftX, incX, strideX,
+                                tau, strideP);
+    }
+    else
+    {
+        dim3 grid(batch_count, 1, 1);
+        dim3 block(256, 1, 1);
+        ROCSOLVER_LAUNCH_KERNEL((larfg_kernel_small<256, T>), grid, block, 0, stream, n, alpha,
+                                shiftA, strideA, beta, shiftB, strideB, x, shiftX, incX, strideX,
+                                tau, strideP);
+    }
 
     return rocblas_status_success;
 }
