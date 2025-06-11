@@ -45,7 +45,7 @@ ROCSOLVER_BEGIN_NAMESPACE
 *************************************************************/
 
 template <typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
-__device__ __inline__ T shift_left(T& value, int lane_delta)
+__device__ __inline__ T shiftleft(T& value, int lane_delta)
 {
     T r = value;
     r = __shfl_down(r, lane_delta);
@@ -53,7 +53,7 @@ __device__ __inline__ T shift_left(T& value, int lane_delta)
 }
 
 template <typename T, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
-__device__ __inline__ T shift_left(T& value, int lane_delta)
+__device__ __inline__ T shiftleft(T& value, int lane_delta)
 {
     using S = decltype(std::real(T{}));
     S r = value.real();
@@ -102,13 +102,13 @@ ROCSOLVER_KERNEL void __launch_bounds__(MAX_THDS) larfg_kernel_small(const I n,
     }
 
     // reduce squared entries to find squared norm of x
-    norm2 += shift_left(norm2, 1);
-    norm2 += shift_left(norm2, 2);
-    norm2 += shift_left(norm2, 4);
-    norm2 += shift_left(norm2, 8);
-    norm2 += shift_left(norm2, 16);
+    norm2 += shiftleft(norm2, 1);
+    norm2 += shiftleft(norm2, 2);
+    norm2 += shiftleft(norm2, 4);
+    norm2 += shiftleft(norm2, 8);
+    norm2 += shiftleft(norm2, 16);
     if(warpSize > 32)
-        norm2 += shift_left(norm2, 32);
+        norm2 += shiftleft(norm2, 32);
     if(tid % warpSize == 0)
         sval[tid / warpSize] = norm2;
     __syncthreads();
