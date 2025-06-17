@@ -618,16 +618,15 @@ __device__ void lasrt_increasing(const rocblas_int n, T* D, rocblas_int* stack)
 }
 
 /** IAMAX finds the maximum element of a given vector.
-    MAX_THDS should be 128, 256, 512, or 1024, and sval should
-    be a shared array of size MAX_THDS. **/
+    MAX_THDS should be a multiple of warpSize, and sval should
+    be a shared array of size MAX_THDS / warpSize. **/
 template <int MAX_THDS, typename T, typename I, typename S>
 __device__ void iamax(const I tid, const I n, T* A, const I incA, S* sval)
 {
     // local memory setup
     S val1, val2;
 
-    // read into shared memory while doing initial step
-    // (each thread reduce as many elements as needed to cover the original array)
+    // each thread reduces as many elements as needed to cover the original array
     val1 = 0;
     for(I i = tid; i < n; i += MAX_THDS)
     {
@@ -635,64 +634,44 @@ __device__ void iamax(const I tid, const I n, T* A, const I incA, S* sval)
         if(val1 < val2)
             val1 = val2;
     }
-    sval[tid] = val1;
-    __syncthreads();
 
+    // quick return
     if(n <= 1)
-        return;
-
-        /** <========= Next do the reduction on the shared memory array =========>
-        (We halve the number of active threads at each step
-        reducing two elements in the shared array. **/
-
-#pragma unroll
-    for(I i = MAX_THDS / 2; i > warpSize; i /= 2)
     {
-        if(tid < i)
-        {
-            val2 = sval[tid + i];
-            if(val1 < val2)
-                sval[tid] = val1 = val2;
-        }
-        __syncthreads();
+        if(tid == 0)
+            sval[0] = val1;
+        return;
     }
 
-    // from this point, as all the active threads will form a single wavefront
-    // and work in lock-step, there is no need for synchronizations and barriers
-    if(tid < warpSize)
+    /** <========= Next do the reduction =========>
+    We use cross-lane operations to perform the reduction across a wavefront
+    without synchronizations or barriers. Then thread 0 iterates over the results
+    produced by each wavefront. **/
+        
+    val1 = std::max(val1, shift_left(val1, 1));
+    val1 = std::max(val1, shift_left(val1, 2));
+    val1 = std::max(val1, shift_left(val1, 4));
+    val1 = std::max(val1, shift_left(val1, 8));
+    val1 = std::max(val1, shift_left(val1, 16));
+    if(warpSize > 32)
+        val1 = std::max(val1, shift_left(val1, 32));
+    if(tid % warpSize == 0)
+        sval[tid / warpSize] = val1;
+    __syncthreads();
+    if(tid == 0)
     {
-        if(warpSize >= 64)
-        {
-            val2 = sval[tid + 64];
-            if(val1 < val2)
-                sval[tid] = val1 = val2;
-        }
-        val2 = sval[tid + 32];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
-        val2 = sval[tid + 16];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
-        val2 = sval[tid + 8];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
-        val2 = sval[tid + 4];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
-        val2 = sval[tid + 2];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
-        val2 = sval[tid + 1];
-        if(val1 < val2)
-            sval[tid] = val1 = val2;
+        #pragma unroll
+        for(I k = 1; k < MAX_THDS / warpSize; k++)
+            val1 = std::max(val1, sval[k]);
+        sval[0] = val1;
     }
 
     // after the reduction, the maximum of the elements is in sval[0]
 }
 
 /** IAMAX finds the maximum element of a given vector and its index.
-    MAX_THDS should be 64, 128, 256, 512, or 1024, and sval and sidx should
-    be shared arrays of size MAX_THDS. **/
+    MAX_THDS should be a multiple of warpSize, and sval and sidx should
+    be shared arrays of size MAX_THDS / warpSize. **/
 template <int MAX_THDS, typename T, typename I, typename S>
 __device__ void iamax(const I tid, const I n, T* A, const I incA, S* sval, I* sidx)
 {
@@ -700,8 +679,7 @@ __device__ void iamax(const I tid, const I n, T* A, const I incA, S* sval, I* si
     S val1, val2;
     I idx1, idx2;
 
-    // read into shared memory while doing initial step
-    // (each thread reduce as many elements as needed to cover the original array)
+    // each thread reduces as many elements as needed to cover the original array
     val1 = 0;
     idx1 = INT_MAX;
     for(I i = tid; i < n; i += MAX_THDS)
@@ -714,163 +692,144 @@ __device__ void iamax(const I tid, const I n, T* A, const I incA, S* sval, I* si
             idx1 = idx2;
         }
     }
-    sval[tid] = val1;
-    sidx[tid] = idx1;
-    __syncthreads();
 
+    // quick return
     if(n <= 1)
-        return;
-
-        /** <========= Next do the reduction on the shared memory array =========>
-        (We halve the number of active threads at each step
-        reducing two elements in the shared array. **/
-
-#pragma unroll
-    for(I i = MAX_THDS / 2; i > warpSize; i /= 2)
     {
-        if(tid < i)
+        if(tid == 0)
         {
-            val2 = sval[tid + i];
-            idx2 = sidx[tid + i];
-            if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-            {
-                sval[tid] = val1 = val2;
-                sidx[tid] = idx1 = idx2;
-            }
+            sval[0] = val1;
+            sidx[0] = idx1;
         }
-        __syncthreads();
+        return;
     }
 
-    // from this point, as all the active threads will form a single wavefront
-    // and work in lock-step, there is no need for synchronizations and barriers
-    if(tid < warpSize)
-    {
-        if(warpSize >= 64 && MAX_THDS >= 128)
+    /** <========= Next do the reduction =========>
+    We use cross-lane operations to perform the reduction across a wavefront
+    without synchronizations or barriers. Then thread 0 iterates over the results
+    produced by each wavefront. **/
+        
+        val2 = shift_left(val1, 1);
+        idx2 = shift_left(idx1, 1);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
         {
-            val2 = sval[tid + 64];
-            idx2 = sidx[tid + 64];
+            val1 = val2;
+            idx1 = idx2;
+        }
+        val2 = shift_left(val1, 2);
+        idx2 = shift_left(idx1, 2);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
+        {
+            val1 = val2;
+            idx1 = idx2;
+        }
+        val2 = shift_left(val1, 4);
+        idx2 = shift_left(idx1, 4);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
+        {
+            val1 = val2;
+            idx1 = idx2;
+        }
+        val2 = shift_left(val1, 8);
+        idx2 = shift_left(idx1, 8);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
+        {
+            val1 = val2;
+            idx1 = idx2;
+        }
+        val2 = shift_left(val1, 16);
+        idx2 = shift_left(idx1, 16);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
+        {
+            val1 = val2;
+            idx1 = idx2;
+        }
+    if(warpSize > 32)
+    {
+        val2 = shift_left(val1, 32);
+        idx2 = shift_left(idx1, 32);
+        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
+        {
+            val1 = val2;
+            idx1 = idx2;
+        }
+    }
+    if(tid % warpSize == 0)
+    {
+        sval[tid / warpSize] = val1;
+        sidx[tid / warpSize] = idx1;
+    }
+    __syncthreads();
+    if(tid == 0)
+    {
+        #pragma unroll
+        for(I k = 1; k < MAX_THDS / warpSize; k++)
+        {
+            val2 = sval[k];
+            idx2 = sidx[k];
             if((val1 < val2) || (val1 == val2 && idx1 > idx2))
             {
-                sval[tid] = val1 = val2;
-                sidx[tid] = idx1 = idx2;
+                val1 = val2;
+                idx1 = idx2;
             }
         }
-        val2 = sval[tid + 32];
-        idx2 = sidx[tid + 32];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 16];
-        idx2 = sidx[tid + 16];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 8];
-        idx2 = sidx[tid + 8];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 4];
-        idx2 = sidx[tid + 4];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 2];
-        idx2 = sidx[tid + 2];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
-        val2 = sval[tid + 1];
-        idx2 = sidx[tid + 1];
-        if((val1 < val2) || (val1 == val2 && idx1 > idx2))
-        {
-            sval[tid] = val1 = val2;
-            sidx[tid] = idx1 = idx2;
-        }
+        sval[0] = val1;
+        sidx[0] = idx1;
     }
 
     // after the reduction, the maximum of the elements is in sval[0] and sidx[0]
 }
 
 /** NRM2 finds the euclidean norm of a given vector.
-    MAX_THDS should be 64, 128, 256, 512, or 1024, and sval should
-    be a shared array of size MAX_THDS. **/
+    MAX_THDS should be a multiple of warpSize, and sval should
+    be a shared array of size MAX_THDS / warpSize. **/
 template <int MAX_THDS, typename T>
 __device__ void nrm2(const rocblas_int tid, const rocblas_int n, T* A, const rocblas_int incA, T* sval)
 {
     // local memory setup
     T val = 0;
 
-    // read into shared memory while doing initial step
-    // (each thread reduce as many elements as needed to cover the original array)
+    // each thread reduces as many elements as needed to cover the original array
     for(int i = tid; i < n; i += MAX_THDS)
         val = val + A[i * incA] * A[i * incA];
-    sval[tid] = val;
-    __syncthreads();
 
+    // quick return
     if(n <= 1)
     {
         if(tid == 0)
-            sval[0] = sqrt(sval[0]);
+            sval[0] = sqrt(val);
         return;
     }
 
-    /** <========= Next do the reduction on the shared memory array =========>
-        (We halve the number of active threads at each step
-        reducing two elements in the shared array. **/
-
-#pragma unroll
-    for(int i = MAX_THDS / 2; i > warpSize; i /= 2)
+    /** <========= Next do the reduction =========>
+    We use cross-lane operations to perform the reduction across a wavefront
+    without synchronizations or barriers. Then thread 0 iterates over the results
+    produced by each wavefront. **/
+        
+    val += shift_left(val, 1);
+    val += shift_left(val, 2);
+    val += shift_left(val, 4);
+    val += shift_left(val, 8);
+    val += shift_left(val, 16);
+    if(warpSize > 32)
+        val += shift_left(val, 32);
+    if(tid % warpSize == 0)
+        sval[tid / warpSize] = val;
+    __syncthreads();
+    if(tid == 0)
     {
-        if(tid < i)
-            val = val + sval[tid + i];
-        __syncthreads();
-        if(tid < i)
-            sval[tid] = val;
-        __syncthreads();
-    }
-
-    // from this point, as all the active threads will form a single wavefront
-    // and work in lock-step, there is no need for synchronizations and barriers
-    if(tid < warpSize)
-    {
-        if(warpSize >= 64 && MAX_THDS >= 128)
-        {
-            sval[tid] = sval[tid] + sval[tid + 64];
-            __threadfence();
-        }
-        sval[tid] = sval[tid] + sval[tid + 32];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 16];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 8];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 4];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 2];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 1];
-        __threadfence();
+        #pragma unroll
+        for(int k = 1; k < MAX_THDS / warpSize; k++)
+            val += sval[k];
+        sval[0] = sqrt(val);
     }
 
     // after the reduction, the euclidean norm of the elements is in sval[0]
-    if(tid == 0)
-        sval[0] = sqrt(sval[0]);
 }
 
 /** DOT finds the dot product of vectors x and y (or conj(y)).
-    MAX_THDS should be 64, 128, 256, 512, or 1024, and sval should
-    be a shared array of size MAX_THDS. **/
+    MAX_THDS should be a multiple of warpSize, and sval should
+    be a shared array of size MAX_THDS / warpSize. **/
 template <int MAX_THDS, bool CONJY, typename T>
 __device__ void dot(const rocblas_int tid,
                     const rocblas_int n,
@@ -883,52 +842,39 @@ __device__ void dot(const rocblas_int tid,
     // local memory setup
     T val = 0;
 
-    // read into shared memory while doing initial step
-    // (each thread reduce as many elements as needed to cover the original array)
+    // each thread reduces as many elements as needed to cover the original array
     for(int i = tid; i < n; i += MAX_THDS)
         val = val + x[i * incX] * (CONJY ? conj(y[i * incY]) : y[i * incY]);
-    sval[tid] = val;
-    __syncthreads();
 
+    // quick return
     if(n <= 1)
-        return;
-
-        /** <========= Next do the reduction on the shared memory array =========>
-        (We halve the number of active threads at each step
-        reducing two elements in the shared array. **/
-
-#pragma unroll
-    for(int i = MAX_THDS / 2; i > warpSize; i /= 2)
     {
-        if(tid < i)
-            val = val + sval[tid + i];
-        __syncthreads();
-        if(tid < i)
-            sval[tid] = val;
-        __syncthreads();
+        if(tid == 0)
+            sval[0] = val;
+        return;
     }
 
-    // from this point, as all the active threads will form a single wavefront
-    // and work in lock-step, there is no need for synchronizations and barriers
-    if(tid < warpSize)
+    /** <========= Next do the reduction =========>
+    We use cross-lane operations to perform the reduction across a wavefront
+    without synchronizations or barriers. Then thread 0 iterates over the results
+    produced by each wavefront. **/
+        
+    val += shift_left(val, 1);
+    val += shift_left(val, 2);
+    val += shift_left(val, 4);
+    val += shift_left(val, 8);
+    val += shift_left(val, 16);
+    if(warpSize > 32)
+        val += shift_left(val, 32);
+    if(tid % warpSize == 0)
+        sval[tid / warpSize] = val;
+    __syncthreads();
+    if(tid == 0)
     {
-        if(warpSize >= 64 && MAX_THDS >= 128)
-        {
-            sval[tid] = sval[tid] + sval[tid + 64];
-            __threadfence();
-        }
-        sval[tid] = sval[tid] + sval[tid + 32];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 16];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 8];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 4];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 2];
-        __threadfence();
-        sval[tid] = sval[tid] + sval[tid + 1];
-        __threadfence();
+        #pragma unroll
+        for(int k = 1; k < MAX_THDS / warpSize; k++)
+            val += sval[k];
+        sval[0] = val;
     }
 
     // after the reduction, the dot product is in sval[0]
