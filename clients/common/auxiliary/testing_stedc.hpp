@@ -405,7 +405,6 @@ void stedc_getPerfData(const rocblas_handle handle,
     // gpu-lapack performance
     hipStream_t stream;
     CHECK_ROCBLAS_ERROR(rocblas_get_stream(handle, &stream));
-    double start;
 
     if(profile > 0)
     {
@@ -421,9 +420,21 @@ void stedc_getPerfData(const rocblas_handle handle,
     {
         stedc_initData<false, true, T>(handle, evect, n, dD, dE, dC, ldc, dInfo, hD, hE, hC, hInfo);
 
-        start = get_time_us_sync(stream);
+        hipEvent_t start, end;
+        CHECK_HIP_ERROR(hipEventCreate(&start));
+        CHECK_HIP_ERROR(hipEventCreate(&end));
+        float elapsed;
+
+        CHECK_HIP_ERROR(hipEventRecord(start, stream));
         rocsolver_stedc(handle, evect, n, dD.data(), dE.data(), dC.data(), ldc, dInfo.data());
-        *gpu_time_used += get_time_us_sync(stream) - start;
+        CHECK_HIP_ERROR(hipEventRecord(end, stream));
+        CHECK_HIP_ERROR(hipStreamSynchronize(stream));
+        CHECK_HIP_ERROR(hipEventElapsedTime(&elapsed, start, end));
+
+        *gpu_time_used += elapsed * 1000;
+
+        CHECK_HIP_ERROR(hipEventDestroy(start));
+        CHECK_HIP_ERROR(hipEventDestroy(end));
     }
     *gpu_time_used /= hot_calls;
 }
