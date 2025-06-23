@@ -1189,16 +1189,16 @@ ROCSOLVER_KERNEL void scal_kernel(I const n, S const da, T* const x, I const inc
 }
 
 template <typename S, typename I>
-__device__ I slaed6(I kniter,
-                    bool orgati,
-                    S rho,
-                    S* d,
-                    S* z,
-                    S finit,
-                    S& tau,
-                    S eps = std::numeric_limits<S>::epsilon() / S(2.),
-                    S ssfmin = std::numeric_limits<S>::min(),
-                    I MAXIT = 50)
+__host__ __device__ I slaed6(I kniter,
+                             bool orgati,
+                             S rho,
+                             S* d,
+                             S* z,
+                             S finit,
+                             S& tau,
+                             S eps = std::numeric_limits<S>::epsilon() / S(2.),
+                             S ssfmin = std::numeric_limits<S>::min(),
+                             I MAXIT = 50)
 {
     auto lam_abs = [](auto x) -> auto
     {
@@ -1221,12 +1221,12 @@ __device__ I slaed6(I kniter,
     struct X_t
     {
         S* x_;
-        __device__ X_t(S* x)
+        __host__ __device__ X_t(S* x)
             : x_(x)
         {
         }
 
-        __device__ S& operator()(int j)
+        __host__ __device__ S& operator()(int j)
         {
             return x_[j - 1];
         }
@@ -1535,15 +1535,15 @@ __device__ I slaed6(I kniter,
 }
 
 template <typename S, typename I>
-__device__ I slaed4(I n,
-                    I i,
-                    S* delta,
-                    S* z,
-                    S rho,
-                    S& dlam,
-                    S eps = std::numeric_limits<S>::epsilon() / S(2.),
-                    S ssfmin = std::numeric_limits<S>::min(),
-                    I MAXIT = 50)
+__host__ __device__ I slaed4(I n,
+                             I i,
+                             S* delta,
+                             S* z,
+                             S rho,
+                             S& dlam,
+                             S eps = std::numeric_limits<S>::epsilon() / S(2.),
+                             S ssfmin = std::numeric_limits<S>::min(),
+                             I MAXIT = 50)
 {
     auto lam_abs = [](auto x) -> auto
     {
@@ -1571,12 +1571,12 @@ __device__ I slaed4(I n,
     struct X_t
     {
         S* x_;
-        __device__ X_t(S* x)
+        __host__ __device__ X_t(S* x)
             : x_(x)
         {
         }
 
-        __device__ S& operator()(int j)
+        __host__ __device__ S& operator()(int j)
         {
             return x_[j - 1];
         }

@@ -37,6 +37,7 @@
 #include "rocauxiliary_sterf.hpp"
 #include "rocblas.hpp"
 #include "rocsolver/rocsolver.h"
+#include "rocsolver_hybrid_storage.hpp"
 #include "rocsolver_run_specialized_kernels.hpp"
 
 #include <algorithm>
@@ -69,21 +70,21 @@ __host__ __device__ inline rocblas_int stedc_num_levels(const rocblas_int n);
     corrections to the elements in D so that distance to poles are computed
    accurately **/
 template <typename S>
-__device__ void seq_eval(const rocblas_int type,
-                         const rocblas_int k,
-                         const rocblas_int dd,
-                         S* D,
-                         const S* z,
-                         const S p,
-                         const S cor,
-                         S* pt_fx,
-                         S* pt_fdx,
-                         S* pt_gx,
-                         S* pt_gdx,
-                         S* pt_hx,
-                         S* pt_hdx,
-                         S* pt_er,
-                         bool modif)
+__host__ __device__ void seq_eval(const rocblas_int type,
+                                  const rocblas_int k,
+                                  const rocblas_int dd,
+                                  S* D,
+                                  const S* z,
+                                  const S p,
+                                  const S cor,
+                                  S* pt_fx,
+                                  S* pt_fdx,
+                                  S* pt_gx,
+                                  S* pt_gdx,
+                                  S* pt_hx,
+                                  S* pt_hdx,
+                                  S* pt_er,
+                                  bool modif)
 {
     S er, fx, gx, hx, fdx, gdx, hdx, zz, tmp;
     rocblas_int gout, hout;
@@ -177,15 +178,15 @@ __device__ void seq_eval(const rocblas_int type,
    number of required iterations to converge. The performance improvements are
    expected to be marginal, though) **/
 template <typename S>
-__device__ rocblas_int seq_solve(const rocblas_int dd,
-                                 S* D,
-                                 const S* z,
-                                 const S p,
-                                 rocblas_int k,
-                                 S* ev,
-                                 const S tol,
-                                 const S ssfmin,
-                                 const S ssfmax)
+__host__ __device__ rocblas_int seq_solve(const rocblas_int dd,
+                                          S* D,
+                                          const S* z,
+                                          const S p,
+                                          rocblas_int k,
+                                          S* ev,
+                                          const S tol,
+                                          const S ssfmin,
+                                          const S ssfmax)
 {
     bool converged = false;
     bool up, fixed;
@@ -447,14 +448,14 @@ __device__ rocblas_int seq_solve(const rocblas_int dd,
    iterations to converge. The performance improvements are expected to be
    marginal, though) **/
 template <typename S>
-__device__ rocblas_int seq_solve_ext(const rocblas_int dd,
-                                     S* D,
-                                     const S* z,
-                                     const S p,
-                                     S* ev,
-                                     const S tol,
-                                     const S ssfmin,
-                                     const S ssfmax)
+__host__ __device__ rocblas_int seq_solve_ext(const rocblas_int dd,
+                                              S* D,
+                                              const S* z,
+                                              const S p,
+                                              S* ev,
+                                              const S tol,
+                                              const S ssfmin,
+                                              const S ssfmax)
 {
     bool converged = false;
     S lowb, uppb, aa, bb, cc, x;
@@ -1282,6 +1283,244 @@ ROCSOLVER_KERNEL void __launch_bounds__(STEDC_BDIM)
                     }
                     dd++;
                 }
+            }
+            /* ----------------------------------------------------------------- */
+        }
+    }
+}
+
+template <rocsolver_stedc_mode MODE, typename S>
+void stedc_mergeValues_host(const rocblas_int k,
+                            const rocblas_int n,
+                            S* D,
+                            S* E,
+                            S* z,
+                            S* vecs,
+                            rocblas_int* splits,
+                            const S eps,
+                            const S ssfmin,
+                            const S ssfmax)
+{
+    // temporary arrays in global memory
+    /* --------------------------------------------------- */
+    // the sub-blocks sizes
+    rocblas_int* nsA = splits + n + 2;
+    // the sub-blocks initial positions
+    rocblas_int* psA = nsA + n;
+    // if idd[i] = 0, the value in position i has been deflated
+    rocblas_int* idd = psA + n;
+    // container of permutations when solving the secular eqns
+    rocblas_int* pers = idd + n;
+    // roots of secular equations
+    S* evs = z + n;
+    // temp values during the merges
+    S* temps = vecs + (n * n);
+    /* --------------------------------------------------- */
+
+    // local variables
+    /* --------------------------------------------------- */
+    // total number of split blocks
+    rocblas_int nb = splits[n + 1];
+    // size of split block
+    rocblas_int bs;
+    // beginning of split block
+    rocblas_int p1;
+    // beginning of sub-block
+    rocblas_int p2;
+    // number of sub-blocks
+    rocblas_int blks;
+    rocblas_int tn;
+    // number of level of division
+    rocblas_int levs;
+    // other aux variables
+    S p;
+    rocblas_int *ns, *ps;
+    /* --------------------------------------------------- */
+
+    // work with STEDC_NUM_SPLIT_BLKS split blocks in parallel
+    /* --------------------------------------------------- */
+    for(int kb = 0; kb < nb; kb++)
+    {
+        // Select current split block
+        p1 = splits[kb];
+        p2 = splits[kb + 1];
+        bs = p2 - p1;
+        ns = nsA + p1;
+        ps = psA + p1;
+
+        // determine ideal number of sub-blocks
+        // tn is the number of thread-groups needed
+        levs = stedc_num_levels<MODE>(bs);
+        blks = levs - 1 - k;
+        tn = (blks < 0) ? 0 : 1 << blks;
+        blks = 1 << levs;
+
+        // 3. MERGE PHASE
+        /* ----------------------------------------------------------------- */
+        // Work with merges on level k. A thread-group works with two leaves in the merge tree;
+        // all threads work together to solve the secular equation.
+        for(int mid = 0; mid < tn; mid++)
+        {
+            rocblas_int sz;
+            S valf, valg;
+            rocblas_int bd = 1 << k;
+            rocblas_int bdm = bd << 1;
+
+            for(int iam = 0; iam <= 1; iam++)
+            {
+                // tid indexes the sub-blocks in the entire split block
+                // iam indexes the sub-blocks in the context of the merge
+                // (according to its level in the merge tree)
+                rocblas_int tid = mid * bdm + iam * bd;
+                p2 = ps[tid];
+
+                // Find off-diagonal element of the merge
+                // Threads with iam = 0 work with components below the merge point;
+                // threads with iam = 1 work above the merge point
+                sz = ns[tid];
+                for(int j = 1; j < bd; ++j)
+                    sz += ns[tid + j];
+                // with this, all threads involved in a merge
+                // will point to the same row of C and the same off-diag element
+                p = (iam == 0) ? 2 * E[p2 - 1 + sz] : 2 * E[p2 - 1];
+            }
+
+            // determine boundaries of what would be the new merged sub-block
+            // 'in' will be its initial position.
+            // 'sz' will be its size (i.e. the sum of the sizes of all merging sub-blocks)
+            rocblas_int in = mid * bdm;
+            sz = ns[in];
+            for(int i = 1; i < bdm; ++i)
+                sz += ns[in + i];
+            in = ps[in];
+
+            // 3d.2. Organize data with non-deflated values to prepare secular equation
+            /* ----------------------------------------------------------------- */
+            rocblas_int tsz = 1 << (levs - 1 - k);
+            tsz = (bs - 1) / tsz + 1;
+
+            // define shifted arrays
+            S* tmpd = temps + in * n;
+            S* ev = evs + in;
+            S* diag = D + in;
+            rocblas_int* mask = idd + in;
+            S* zz = z + in;
+            rocblas_int* per = pers + in;
+
+            // find degree of secular equation
+            rocblas_int dd = 0;
+            for(int i = 0; i < sz; ++i)
+            {
+                if(mask[i] == 1)
+                    dd++;
+            }
+
+            // Order the elements in tmpd and zz using a simple parallel selection/bubble sort.
+            // This will allow us to find initial intervals for eigenvalue guesses
+            for(int i = 0; i < tsz; ++i)
+            {
+                if(i < dd)
+                {
+                    if(i % 2 == 0)
+                    {
+                        for(int j = 0; j < dd / 2; j++)
+                        {
+                            if(tmpd[2 * j] > tmpd[2 * j + 1])
+                            {
+                                swap(tmpd[2 * j], tmpd[2 * j + 1]);
+                                swap(zz[2 * j], zz[2 * j + 1]);
+                                swap(per[2 * j], per[2 * j + 1]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for(int j = 0; j < (dd - 1) / 2; j++)
+                        {
+                            if(tmpd[2 * j + 1] > tmpd[2 * j + 2])
+                            {
+                                swap(tmpd[2 * j + 1], tmpd[2 * j + 2]);
+                                swap(zz[2 * j + 1], zz[2 * j + 2]);
+                                swap(per[2 * j + 1], per[2 * j + 2]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // make dd copies of the non-deflated ordered diagonal elements
+            // (i.e. the poles of the secular eqn) so that the distances to the
+            // eigenvalues (D - lambda_i) are updated while computing each eigenvalue.
+            // This will prevent collapses and division by zero when an eigenvalue
+            // is too close to a pole.
+            for(int j = 1; j < sz; j++)
+            {
+                for(int i = 0; i < dd; ++i)
+                    tmpd[i + j * n] = tmpd[i];
+            }
+
+            // finally copy over all diagonal elements in ev. ev will be overwritten
+            // by the new computed eigenvalues of the merged block
+            for(int i = 0; i < sz; i++)
+                ev[i] = diag[i];
+            /* ----------------------------------------------------------------- */
+
+            // 3e. Solve secular eqns, i.e. find the dd zeros
+            // corresponding to non-deflated new eigenvalues of the merged block
+            /* ----------------------------------------------------------------- */
+            // each thread will find a different zero in parallel
+            S a, b;
+            for(int j = 0; j < sz; j++)
+            {
+                if(mask[j] == 1)
+                {
+                    // find position in the ordered array
+                    int cc = 0;
+                    valf = p < 0 ? -ev[j] : ev[j];
+                    for(int jj = 0; jj < dd; ++jj)
+                    {
+                        if(tmpd[jj + j * n] == valf)
+                            break;
+                        else
+                            cc++;
+                    }
+
+                    // computed zero will overwrite 'ev' at the corresponding position.
+                    // 'tmpd' will be updated with the distances D - lambda_i.
+                    // deflated values are not changed.
+                    rocblas_int linfo;
+
+#if defined(ROCSOLVER_USE_REFERENCE_SECULAR_EQUATIONS_SOLVER)
+                    linfo = slaed4(dd, cc, tmpd + j * n, zz, std::abs(p), ev[j]);
+#else
+                    if(cc == dd - 1)
+                        linfo = seq_solve_ext(dd, tmpd + j * n, zz, (p < 0 ? -p : p), ev + j, eps,
+                                              ssfmin, ssfmax);
+                    else
+                        linfo = seq_solve(dd, tmpd + j * n, zz, (p < 0 ? -p : p), cc, ev + j, eps,
+                                          ssfmin, ssfmax);
+#endif
+
+                    if(p < 0)
+                        ev[j] *= -1;
+                }
+            }
+
+            // Re-scale vector Z to avoid bad numerics when an eigenvalue
+            // is too close to a pole
+            for(int i = 0; i < dd; i++)
+            {
+                valf = 1;
+                for(int j = 0; j < sz; ++j)
+                {
+                    if(mask[j] == 1)
+                    {
+                        valg = tmpd[i + j * n];
+                        valf *= (per[i] == j) ? valg : valg / (diag[per[i]] - diag[j]);
+                    }
+                }
+                valf = sqrt(std::abs(valf));
+                zz[i] = zz[i] < 0 ? -valf : valf;
             }
             /* ----------------------------------------------------------------- */
         }
@@ -2418,11 +2657,43 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
                                     E + shiftE, strideE, V, 0, ldv, strideV, tmpz, tempgemm, splits,
                                     eps);
 
-            // b. solve to find merged eigen values
-            ROCSOLVER_LAUNCH_KERNEL((stedc_mergeValues_kernel<rocsolver_stedc_mode_qr, S>),
-                                    dim3(numgrps2, STEDC_NUM_SPLIT_BLKS, batch_count),
-                                    dim3(STEDC_BDIM), 0, stream, k, n, D + shiftD, strideD,
-                                    E + shiftE, strideE, tmpz, tempgemm, splits, eps, ssfmin, ssfmax);
+            if(true)
+            {
+                rocsolver_hybrid_storage<S, rocblas_int, S*> hD;
+                rocsolver_hybrid_storage<S, rocblas_int, S*> hE;
+                rocsolver_hybrid_storage<S, rocblas_int, S*> htmpz;
+                rocsolver_hybrid_storage<S, rocblas_int, S*> htempgemm;
+                rocsolver_hybrid_storage<rocblas_int, rocblas_int, rocblas_int*> hsplits;
+
+                ROCBLAS_CHECK(hD.init_async(n, D + shiftD, strideD, batch_count, stream));
+                ROCBLAS_CHECK(hE.init_async(n - 1, E + shiftE, strideE, batch_count, stream));
+                ROCBLAS_CHECK(htmpz.init_async(2 * n, tmpz, 2 * n, batch_count, stream));
+                ROCBLAS_CHECK(
+                    htempgemm.init_async(2 * n * n, tempgemm, 2 * n * n, batch_count, stream));
+                ROCBLAS_CHECK(hsplits.init_async(5 * n + 2, splits, 5 * n + 2, batch_count, stream));
+                HIP_CHECK(hipStreamSynchronize(stream));
+
+                // b. solve to find merged eigen values
+                for(int b = 0; b < batch_count; b++)
+                    stedc_mergeValues_host<rocsolver_stedc_mode_qr, S>(
+                        k, n, hD[b], hE[b], htmpz[b], htempgemm[b], hsplits[b], eps, ssfmin, ssfmax);
+
+                ROCBLAS_CHECK(hD.write_to_device_async(stream));
+                ROCBLAS_CHECK(hE.write_to_device_async(stream));
+                ROCBLAS_CHECK(htmpz.write_to_device_async(stream));
+                ROCBLAS_CHECK(htempgemm.write_to_device_async(stream));
+                ROCBLAS_CHECK(hsplits.write_to_device_async(stream));
+                HIP_CHECK(hipStreamSynchronize(stream));
+            }
+            else
+            {
+                // b. solve to find merged eigen values
+                ROCSOLVER_LAUNCH_KERNEL((stedc_mergeValues_kernel<rocsolver_stedc_mode_qr, S>),
+                                        dim3(numgrps2, STEDC_NUM_SPLIT_BLKS, batch_count),
+                                        dim3(STEDC_BDIM), 0, stream, k, n, D + shiftD, strideD,
+                                        E + shiftE, strideE, tmpz, tempgemm, splits, eps, ssfmin,
+                                        ssfmax);
+            }
 
             // c. find merged eigen vectors
             ROCSOLVER_LAUNCH_KERNEL(

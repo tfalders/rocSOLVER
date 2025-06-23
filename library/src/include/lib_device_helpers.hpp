@@ -60,7 +60,7 @@ __device__ S aabs(T val)
 }
 
 template <typename T>
-__device__ __forceinline__ void swap(T& a, T& b)
+__device__ __host__ __forceinline__ void swap(T& a, T& b)
 {
     T temp = a;
     a = b;
