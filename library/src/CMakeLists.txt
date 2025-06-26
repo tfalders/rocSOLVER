@@ -390,7 +390,7 @@ add_library(roc::rocsolver ALIAS rocsolver)
     set(Test_LD_Flags "-lm -lpthread" CACHE STRING "LD FLags")
     set(TEST_FLAGS "${OpenMP_libomp_LIBRARY} ${Test_C_Flags} ${Test_LD_Flags}")
 
-target_include_directories(rocsolver PRIVATE "/opt/AMD/aocl/aocl-linux-aocc-5.0.0/aocc/include/" "/usr/lib/gcc/x86_64-linux-gnu/9/include/")
+target_include_directories(rocsolver PRIVATE "/opt/AMD/aocl/aocl-linux-aocc-5.0.0/aocc/include/" "/usr/lib/gcc/x86_64-linux-gnu/12/include/")
 target_link_directories(rocsolver PRIVATE "/opt/AMD/aocl/aocl-linux-aocc-5.0.0/aocc/lib/")
 
 target_link_libraries(rocsolver
