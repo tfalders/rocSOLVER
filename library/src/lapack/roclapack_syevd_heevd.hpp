@@ -1,4 +1,4 @@
-/************************************************************************ 
+/************************************************************************
  * Derived from the BSD3-licensed
  * LAPACK routine (version 3.7.0) --
  *     Univ. of Tennessee, Univ. of California Berkeley,
@@ -39,6 +39,8 @@
 #include "roclapack_syev_heev.hpp"
 #include "roclapack_sytrd_hetrd.hpp"
 #include "rocsolver/rocsolver.h"
+
+#include "FLAME.h"
 
 ROCSOLVER_BEGIN_NAMESPACE
 
@@ -125,6 +127,70 @@ void rocsolver_syevd_heevd_getMemorySize(rocblas_handle handle,
         *size_workArr = 0;
 }
 
+template <typename T, typename S, std::enable_if_t<std::is_same<T, float>::value, int> = 0>
+void call_stedc(char* compz,
+                int* n,
+                S* d,
+                S* e,
+                T* z,
+                int* ldz,
+                T* work,
+                int* lwork,
+                int* iwork,
+                int* liwork,
+                int* info)
+{
+    sstedc_(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info);
+}
+
+template <typename T, typename S, std::enable_if_t<std::is_same<T, double>::value, int> = 0>
+void call_stedc(char* compz,
+                int* n,
+                S* d,
+                S* e,
+                T* z,
+                int* ldz,
+                T* work,
+                int* lwork,
+                int* iwork,
+                int* liwork,
+                int* info)
+{
+    dstedc_(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info);
+}
+
+template <typename T, typename S, std::enable_if_t<std::is_same<T, rocblas_float_complex>::value, int> = 0>
+void call_stedc(char* compz,
+                int* n,
+                S* d,
+                S* e,
+                T* z,
+                int* ldz,
+                T* work,
+                int* lwork,
+                int* iwork,
+                int* liwork,
+                int* info)
+{
+    // cstedc_(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info);
+}
+
+template <typename T, typename S, std::enable_if_t<std::is_same<T, rocblas_double_complex>::value, int> = 0>
+void call_stedc(char* compz,
+                int* n,
+                S* d,
+                S* e,
+                T* z,
+                int* ldz,
+                T* work,
+                int* lwork,
+                int* iwork,
+                int* liwork,
+                int* info)
+{
+    // zstedc_(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info);
+}
+
 template <bool BATCHED, bool STRIDED, typename T, typename S, typename W>
 rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
                                               const rocblas_evect evect,
@@ -199,12 +265,42 @@ rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
     {
         // for performance reasons, we use stedc to compute eigenvalues even if the eigenvectors are ignored
         constexpr bool ISBATCHED = BATCHED || STRIDED;
-        const rocblas_int ldw = n;
-        const rocblas_stride strideW = n * n;
+        rocblas_int ldw = n;
+        rocblas_stride strideW = n * n;
 
-        rocsolver_stedc_template<false, ISBATCHED, T>(
-            handle, rocblas_evect_tridiagonal, n, D, 0, strideD, E, 0, strideE, tmptau_W, 0, ldw,
-            strideW, info, batch_count, work3, (S*)work2, (S*)work1, tmpz, splits, (S**)workArr);
+        rocsolver_hybrid_storage<S, rocblas_int, S*> hD;
+        rocsolver_hybrid_storage<S, rocblas_int, S*> hE;
+        rocsolver_hybrid_storage<T, rocblas_int, T*> hW;
+
+        ROCBLAS_CHECK(hD.init_async(n, D, strideD, batch_count, stream));
+        ROCBLAS_CHECK(hE.init_async(n - 1, E, strideE, batch_count, stream));
+        ROCBLAS_CHECK(hW.init_async(n * n, tmptau_W, strideW, batch_count, stream));
+        HIP_CHECK(hipStreamSynchronize(stream));
+
+        char compz = 'I';
+        int nn = n;
+        int lwork = 1 + 4 * n + 2 * n * n;
+        int liwork = 3 + 5 * n;
+        T* work;
+        int* iwork;
+        int info;
+        HIP_CHECK(hipHostMalloc(&work, sizeof(T) * lwork));
+        HIP_CHECK(hipHostMalloc(&iwork, sizeof(int) * liwork));
+        for(int b = 0; b < batch_count; b++)
+        {
+            call_stedc<T>(&compz, &nn, hD[b], hE[b], hW[b], &ldw, work, &lwork, iwork, &liwork,
+                          &info);
+        }
+        HIP_CHECK(hipHostFree(work));
+        HIP_CHECK(hipHostFree(iwork));
+        // rocsolver_stedc_template<false, ISBATCHED, T>(
+        //     handle, rocblas_evect_tridiagonal, n, D, 0, strideD, E, 0, strideE, tmptau_W, 0, ldw,
+        //     strideW, info, batch_count, work3, (S*)work2, (S*)work1, tmpz, splits, (S**)workArr);
+
+        ROCBLAS_CHECK(hD.write_to_device_async(stream));
+        ROCBLAS_CHECK(hE.write_to_device_async(stream));
+        ROCBLAS_CHECK(hW.write_to_device_async(stream));
+        HIP_CHECK(hipStreamSynchronize(stream));
 
         // update the eigenvectors (if applicable)
         if(evect == rocblas_evect_original)

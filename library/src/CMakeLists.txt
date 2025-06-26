@@ -382,12 +382,26 @@ add_library(rocsolver
   ${rocsolver_refact_source}
 )
 
+# find_package(OpenMP REQUIRED)
 add_library(roc::rocsolver ALIAS rocsolver)
+
+    set(OpenMP_libomp_LIBRARY "-fopenmp" CACHE STRING "openmp library path")
+    set(Test_C_Flags "-g -O2 -Wall -Wno-comment" CACHE STRING "C Flags")
+    set(Test_LD_Flags "-lm -lpthread" CACHE STRING "LD FLags")
+    set(TEST_FLAGS "${OpenMP_libomp_LIBRARY} ${Test_C_Flags} ${Test_LD_Flags}")
+
+target_include_directories(rocsolver PRIVATE "/opt/AMD/aocl/aocl-linux-aocc-5.0.0/aocc/include/" "/usr/lib/gcc/x86_64-linux-gnu/9/include/")
+target_link_directories(rocsolver PRIVATE "/opt/AMD/aocl/aocl-linux-aocc-5.0.0/aocc/lib/")
 
 target_link_libraries(rocsolver
   PUBLIC
     roc::rocblas
   PRIVATE
+  ${TEST_FLAGS}
+  blis-mt
+  stdc++
+  aoclutils
+  flame
     $<BUILD_INTERFACE:rocsolver-common> # https://gitlab.kitware.com/cmake/cmake/-/issues/15415
     roc::rocprim
     $<$<PLATFORM_ID:Linux>:--rtlib=compiler-rt>
