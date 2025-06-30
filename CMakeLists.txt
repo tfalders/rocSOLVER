@@ -215,15 +215,7 @@ endif()
 # Find HIP dependencies
 find_package(hip REQUIRED CONFIG PATHS ${ROCM_PATH} /opt/rocm)
 
-# set(OpenMP_C_FLAGS "-fopenmp")
-# set(OpenMP_CXX_FLAGS "-fopenmp")
-# set(OpenMP_C_LIB_NAMES "libomp")
-# set(OpenMP_CXX_LIB_NAMES "libomp")
-# set(OpenMP_libomp_LIBRARY "/opt/rocm/llvm/lib/libomp.so")
 find_package(OpenMP REQUIRED)
-if(OpenMP_FOUND)
-  message(STATUS "Found OpenMP!!!!!!!!!!!!!!!!!!!!!!!")
-endif( )
 
 find_package(rocblas REQUIRED CONFIG PATHS ${ROCM_PATH})
 get_imported_target_location(location roc::rocblas)
