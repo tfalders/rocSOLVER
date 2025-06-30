@@ -42,6 +42,8 @@
 
 #include <algorithm>
 
+#include <omp.h>
+
 ROCSOLVER_BEGIN_NAMESPACE
 
 #define STEDC_BDIM 512 // Number of threads per thread-block used in main stedc kernels
@@ -1423,6 +1425,7 @@ void stedc_mergeValues_host(const rocblas_int k,
                 {
                     if(i % 2 == 0)
                     {
+#pragma omp parallel for schedule(dynamic, 1024)
                         for(int j = 0; j < dd / 2; j++)
                         {
                             if(tmpd[2 * j] > tmpd[2 * j + 1])
@@ -1435,6 +1438,7 @@ void stedc_mergeValues_host(const rocblas_int k,
                     }
                     else
                     {
+#pragma omp parallel for schedule(dynamic, 1024)
                         for(int j = 0; j < (dd - 1) / 2; j++)
                         {
                             if(tmpd[2 * j + 1] > tmpd[2 * j + 2])
@@ -1448,19 +1452,21 @@ void stedc_mergeValues_host(const rocblas_int k,
                 }
             }
 
-            // make dd copies of the non-deflated ordered diagonal elements
-            // (i.e. the poles of the secular eqn) so that the distances to the
-            // eigenvalues (D - lambda_i) are updated while computing each eigenvalue.
-            // This will prevent collapses and division by zero when an eigenvalue
-            // is too close to a pole.
+// make dd copies of the non-deflated ordered diagonal elements
+// (i.e. the poles of the secular eqn) so that the distances to the
+// eigenvalues (D - lambda_i) are updated while computing each eigenvalue.
+// This will prevent collapses and division by zero when an eigenvalue
+// is too close to a pole.
+#pragma omp parallel for schedule(dynamic, 1024)
             for(int j = 1; j < sz; j++)
             {
                 for(int i = 0; i < dd; ++i)
                     tmpd[i + j * n] = tmpd[i];
             }
 
-            // finally copy over all diagonal elements in ev. ev will be overwritten
-            // by the new computed eigenvalues of the merged block
+// finally copy over all diagonal elements in ev. ev will be overwritten
+// by the new computed eigenvalues of the merged block
+#pragma omp parallel for schedule(dynamic, 1024)
             for(int i = 0; i < sz; i++)
                 ev[i] = diag[i];
             /* ----------------------------------------------------------------- */
@@ -1470,6 +1476,7 @@ void stedc_mergeValues_host(const rocblas_int k,
             /* ----------------------------------------------------------------- */
             // each thread will find a different zero in parallel
             S a, b;
+#pragma omp parallel for schedule(dynamic, 1024)
             for(int j = 0; j < sz; j++)
             {
                 if(mask[j] == 1)
@@ -1506,8 +1513,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                 }
             }
 
-            // Re-scale vector Z to avoid bad numerics when an eigenvalue
-            // is too close to a pole
+// Re-scale vector Z to avoid bad numerics when an eigenvalue
+// is too close to a pole
+#pragma omp parallel for schedule(dynamic, 1024)
             for(int i = 0; i < dd; i++)
             {
                 valf = 1;

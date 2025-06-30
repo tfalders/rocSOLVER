@@ -384,10 +384,13 @@ add_library(rocsolver
 
 add_library(roc::rocsolver ALIAS rocsolver)
 
+target_include_directories(rocsolver PRIVATE "/usr/lib/llvm-14/lib/clang/14.0.0/include/")
+
 target_link_libraries(rocsolver
   PUBLIC
     roc::rocblas
   PRIVATE
+    "-fopenmp"
     $<BUILD_INTERFACE:rocsolver-common> # https://gitlab.kitware.com/cmake/cmake/-/issues/15415
     roc::rocprim
     $<$<PLATFORM_ID:Linux>:--rtlib=compiler-rt>
