@@ -1494,9 +1494,9 @@ void stedc_mergeValues_host(const rocblas_int k,
             /* ----------------------------------------------------------------- */
             // each thread will find a different zero in parallel
             S a, b;
-            // #ifdef _OPENMP
-            // #pragma omp parallel for
-            // #endif
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
             for(int j = 0; j < sz; j++)
             {
                 // printf("thread %i processing %i\n", omp_get_thread_num(), j);
@@ -1534,9 +1534,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                         ev[j] *= -1;
                 }
             }
-            // #ifdef _OPENMP
-            // #pragma omp barrier
-            // #endif
+#ifdef _OPENMP
+#pragma omp barrier
+#endif
 
             // Re-scale vector Z to avoid bad numerics when an eigenvalue
             // is too close to a pole
