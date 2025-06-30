@@ -390,7 +390,6 @@ target_link_libraries(rocsolver
   PUBLIC
     roc::rocblas
   PRIVATE
-    "-fopenmp"
     $<BUILD_INTERFACE:rocsolver-common> # https://gitlab.kitware.com/cmake/cmake/-/issues/15415
     roc::rocprim
     $<$<PLATFORM_ID:Linux>:--rtlib=compiler-rt>
@@ -399,6 +398,22 @@ target_link_libraries(rocsolver
 if(NOT USE_HIPCXX)
   target_link_libraries(rocsolver PRIVATE hip::device)
 endif()
+
+# Add OpenMP if available
+if(OpenMP_FOUND)
+  message(STATUS "Linking OpenMP!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+  # target_compile_options(rocsolver PRIVATE -fopenmp)
+  if (NOT WIN32)
+    target_link_libraries(rocsolver PRIVATE OpenMP::OpenMP_CXX -Wl,-rpath=${HIP_CLANG_ROOT}/lib)
+  else()
+    target_link_libraries(rocsolver PRIVATE libomp)
+  endif()
+endif()
+# if(OpenMP_CXX_FOUND)
+#   message(STATUS "Linking OpenMP!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#   target_compile_options(rocsolver PUBLIC -fopenmp)
+#   target_link_libraries(rocsolver PUBLIC OpenMP::OpenMP_CXX)
+# endif()
 
 if(NOT BUILD_WITH_SPARSE)
   target_link_libraries(rocsolver PRIVATE $<$<PLATFORM_ID:Linux>:${CMAKE_DL_LIBS}>)
