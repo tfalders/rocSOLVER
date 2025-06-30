@@ -1456,6 +1456,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                         }
                     }
                 }
+#ifdef _OPENMP
+#pragma omp barrier
+#endif
             }
 
 // make dd copies of the non-deflated ordered diagonal elements
@@ -1484,6 +1487,9 @@ void stedc_mergeValues_host(const rocblas_int k,
 #endif
                 ev[i] = diag[i];
             }
+#ifdef _OPENMP
+#pragma omp barrier
+#endif
             /* ----------------------------------------------------------------- */
 
             // 3e. Solve secular eqns, i.e. find the dd zeros
@@ -1531,6 +1537,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                         ev[j] *= -1;
                 }
             }
+// #ifdef _OPENMP
+// #pragma omp barrier
+// #endif
 
 // Re-scale vector Z to avoid bad numerics when an eigenvalue
 // is too close to a pole
