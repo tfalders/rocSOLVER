@@ -1427,9 +1427,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                 {
                     if(i % 2 == 0)
                     {
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+                        // #ifdef _OPENMP
+                        // #pragma omp parallel for
+                        // #endif
                         for(int j = 0; j < dd / 2; j++)
                         {
                             if(tmpd[2 * j] > tmpd[2 * j + 1])
@@ -1442,9 +1442,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                     }
                     else
                     {
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+                        // #ifdef _OPENMP
+                        // #pragma omp parallel for
+                        // #endif
                         for(int j = 0; j < (dd - 1) / 2; j++)
                         {
                             if(tmpd[2 * j + 1] > tmpd[2 * j + 2])
@@ -1456,40 +1456,37 @@ void stedc_mergeValues_host(const rocblas_int k,
                         }
                     }
                 }
-#ifdef _OPENMP
-#pragma omp barrier
-#endif
+                // #ifdef _OPENMP
+                // #pragma omp barrier
+                // #endif
             }
 
-// make dd copies of the non-deflated ordered diagonal elements
-// (i.e. the poles of the secular eqn) so that the distances to the
-// eigenvalues (D - lambda_i) are updated while computing each eigenvalue.
-// This will prevent collapses and division by zero when an eigenvalue
-// is too close to a pole.
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+            // make dd copies of the non-deflated ordered diagonal elements
+            // (i.e. the poles of the secular eqn) so that the distances to the
+            // eigenvalues (D - lambda_i) are updated while computing each eigenvalue.
+            // This will prevent collapses and division by zero when an eigenvalue
+            // is too close to a pole.
+            // #ifdef _OPENMP
+            // #pragma omp parallel for
+            // #endif
             for(int j = 1; j < sz; j++)
             {
                 for(int i = 0; i < dd; ++i)
                     tmpd[i + j * n] = tmpd[i];
             }
 
-// finally copy over all diagonal elements in ev. ev will be overwritten
-// by the new computed eigenvalues of the merged block
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+            // finally copy over all diagonal elements in ev. ev will be overwritten
+            // by the new computed eigenvalues of the merged block
+            // #ifdef _OPENMP
+            // #pragma omp parallel for
+            // #endif
             for(int i = 0; i < sz; i++)
             {
-#ifdef _OPENMP
-                printf("thread %i processing %i\n", omp_get_thread_num(), i);
-#endif
                 ev[i] = diag[i];
             }
-#ifdef _OPENMP
-#pragma omp barrier
-#endif
+            // #ifdef _OPENMP
+            // #pragma omp barrier
+            // #endif
             /* ----------------------------------------------------------------- */
 
             // 3e. Solve secular eqns, i.e. find the dd zeros
