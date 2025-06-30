@@ -1478,7 +1478,12 @@ void stedc_mergeValues_host(const rocblas_int k,
 #pragma omp parallel for
 #endif
             for(int i = 0; i < sz; i++)
+            {
+#ifdef _OPENMP
+                printf("thread %i processing %i\n", omp_get_thread_num(), i);
+#endif
                 ev[i] = diag[i];
+            }
             /* ----------------------------------------------------------------- */
 
             // 3e. Solve secular eqns, i.e. find the dd zeros
@@ -1491,7 +1496,7 @@ void stedc_mergeValues_host(const rocblas_int k,
             // #endif
             for(int j = 0; j < sz; j++)
             {
-                printf("thread %i processing %i\n", omp_get_thread_num(), j);
+                // printf("thread %i processing %i\n", omp_get_thread_num(), j);
 
                 if(mask[j] == 1)
                 {

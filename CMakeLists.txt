@@ -215,7 +215,7 @@ endif()
 # Find HIP dependencies
 find_package(hip REQUIRED CONFIG PATHS ${ROCM_PATH} /opt/rocm)
 
-find_package(OpenMP REQUIRED)
+find_package(OpenMP QUIET)
 
 find_package(rocblas REQUIRED CONFIG PATHS ${ROCM_PATH})
 get_imported_target_location(location roc::rocblas)
