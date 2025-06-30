@@ -1427,9 +1427,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                 {
                     if(i % 2 == 0)
                     {
-                        // #ifdef _OPENMP
-                        // #pragma omp parallel for
-                        // #endif
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
                         for(int j = 0; j < dd / 2; j++)
                         {
                             if(tmpd[2 * j] > tmpd[2 * j + 1])
@@ -1442,9 +1442,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                     }
                     else
                     {
-                        // #ifdef _OPENMP
-                        // #pragma omp parallel for
-                        // #endif
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
                         for(int j = 0; j < (dd - 1) / 2; j++)
                         {
                             if(tmpd[2 * j + 1] > tmpd[2 * j + 2])
@@ -1456,9 +1456,9 @@ void stedc_mergeValues_host(const rocblas_int k,
                         }
                     }
                 }
-                // #ifdef _OPENMP
-                // #pragma omp barrier
-                // #endif
+#ifdef _OPENMP
+#pragma omp barrier
+#endif
             }
 
             // make dd copies of the non-deflated ordered diagonal elements
@@ -1534,15 +1534,15 @@ void stedc_mergeValues_host(const rocblas_int k,
                         ev[j] *= -1;
                 }
             }
-// #ifdef _OPENMP
-// #pragma omp barrier
-// #endif
+            // #ifdef _OPENMP
+            // #pragma omp barrier
+            // #endif
 
-// Re-scale vector Z to avoid bad numerics when an eigenvalue
-// is too close to a pole
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+            // Re-scale vector Z to avoid bad numerics when an eigenvalue
+            // is too close to a pole
+            // #ifdef _OPENMP
+            // #pragma omp parallel for
+            // #endif
             for(int i = 0; i < dd; i++)
             {
                 valf = 1;
