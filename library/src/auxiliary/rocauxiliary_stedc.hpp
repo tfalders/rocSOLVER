@@ -2071,8 +2071,6 @@ ROCSOLVER_KERNEL void __launch_bounds__(STEDC_BDIM)
                               const rocblas_int n,
                               S* DD,
                               const rocblas_stride strideD,
-                              S* EE,
-                              const rocblas_stride strideE,
                               S* CC,
                               const rocblas_int shiftC,
                               const rocblas_int ldc,
@@ -2101,7 +2099,6 @@ ROCSOLVER_KERNEL void __launch_bounds__(STEDC_BDIM)
     if(CC)
         C = load_ptr_batch<S>(CC, bid, shiftC, strideC);
     S* D = DD + bid * strideD;
-    S* E = EE + bid * strideE;
     /* --------------------------------------------------- */
 
     // temporary arrays in global memory
@@ -2878,6 +2875,16 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
         size_t lmemsize3 = sizeof(S) * STEDC_BDIM;
         rocblas_int numgrps3 = ((n - 1) / maxblks + 1) * maxblks;
 
+        rocsolver_hybrid_storage<S, rocblas_int, S*> hD;
+        rocsolver_hybrid_storage<S, rocblas_int, S*> hE;
+        rocsolver_hybrid_storage<S, rocblas_int, S*> hV;
+        rocsolver_hybrid_storage<S, rocblas_int, S*> htmpz;
+        rocsolver_hybrid_storage<S, rocblas_int, S*> htempgemm;
+        rocsolver_hybrid_storage<rocblas_int, rocblas_int, rocblas_int*> hsplits;
+
+        ROCBLAS_CHECK(hE.init_async(n - 1, E, shiftE, strideE, batch_count, stream));
+        ROCBLAS_CHECK(htmpz.init_async(2 * n, tmpz, 0, 2 * n, batch_count, stream));
+
         // launch merge for level k
         // TODO: using max number of levels for now. Kernels return immediately when surpassing
         // the actual number of levels in the split block. We should explore if synchronizing
@@ -2888,17 +2895,8 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
         {
             if(true)
             {
-                rocsolver_hybrid_storage<S, rocblas_int, S*> hD;
-                rocsolver_hybrid_storage<S, rocblas_int, S*> hE;
-                rocsolver_hybrid_storage<S, rocblas_int, S*> hV;
-                rocsolver_hybrid_storage<S, rocblas_int, S*> htmpz;
-                rocsolver_hybrid_storage<S, rocblas_int, S*> htempgemm;
-                rocsolver_hybrid_storage<rocblas_int, rocblas_int, rocblas_int*> hsplits;
-
                 ROCBLAS_CHECK(hD.init_async(n, D, shiftD, strideD, batch_count, stream));
-                ROCBLAS_CHECK(hE.init_async(n - 1, E, shiftE, strideE, batch_count, stream));
                 ROCBLAS_CHECK(hV.init_async(ldv * n, V, 0, strideV, batch_count, stream));
-                ROCBLAS_CHECK(htmpz.init_async(2 * n, tmpz, 0, 2 * n, batch_count, stream));
                 ROCBLAS_CHECK(
                     htempgemm.init_async(2 * n * n, tempgemm, 0, 2 * n * n, batch_count, stream));
                 ROCBLAS_CHECK(
@@ -2916,8 +2914,8 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
                         k, n, hD[b], hE[b], htmpz[b], htempgemm[b], hsplits[b], eps, ssfmin, ssfmax);
                 }
 
-                ROCBLAS_CHECK(hD.write_to_device_async(stream));
-                ROCBLAS_CHECK(hE.write_to_device_async(stream));
+                // ROCBLAS_CHECK(hD.write_to_device_async(stream));
+                // ROCBLAS_CHECK(hE.write_to_device_async(stream));
                 ROCBLAS_CHECK(hV.write_to_device_async(stream));
                 ROCBLAS_CHECK(htmpz.write_to_device_async(stream));
                 ROCBLAS_CHECK(htempgemm.write_to_device_async(stream));
@@ -2946,8 +2944,7 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
             ROCSOLVER_LAUNCH_KERNEL(
                 (stedc_mergeVectors_kernel<rocsolver_stedc_mode_qr, STEDC_EXTERNAL_GEMM, S>),
                 dim3(numgrps3, STEDC_NUM_SPLIT_BLKS, batch_count), dim3(STEDC_BDIM), lmemsize3,
-                stream, k, n, D + shiftD, strideD, E + shiftE, strideE, V, 0, ldv, strideV, tmpz,
-                tempgemm, splits);
+                stream, k, n, D + shiftD, strideD, V, 0, ldv, strideV, tmpz, tempgemm, splits);
 
             if(STEDC_EXTERNAL_GEMM)
             {
