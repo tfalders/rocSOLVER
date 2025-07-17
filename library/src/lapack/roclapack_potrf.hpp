@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,28 +38,6 @@
 #include "rocsolver_run_specialized_kernels.hpp"
 
 ROCSOLVER_BEGIN_NAMESPACE
-
-template <typename I>
-static I get_lds_size()
-{
-    I const default_lds_size = 64 * 1024;
-
-    I lds_size = 0;
-    I deviceId = 0;
-    auto istat_device = hipGetDevice(&deviceId);
-    if(istat_device != hipSuccess)
-    {
-        return (default_lds_size);
-    };
-    auto const attr = hipDeviceAttributeMaxSharedMemoryPerBlock;
-    auto istat_attr = hipDeviceGetAttribute(&lds_size, attr, deviceId);
-    if(istat_attr != hipSuccess)
-    {
-        return (default_lds_size);
-    };
-
-    return (lds_size);
-}
 
 template <typename I, typename INFO, typename U>
 ROCSOLVER_KERNEL void chk_positive(INFO* iinfo, INFO* info, I j, I batch_count)

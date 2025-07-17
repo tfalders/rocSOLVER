@@ -66,6 +66,12 @@ rocblas_status rocsolver_gesdd_impl(rocblas_handle handle,
     rocblas_stride strideV = 0;
     rocblas_int batch_count = 1;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size for constants in rocblas calls
     size_t size_scalars;
@@ -116,7 +122,7 @@ rocblas_status rocsolver_gesdd_impl(rocblas_handle handle,
     return rocsolver_gesdd_template<false, false, T>(
         handle, left_svect, right_svect, m, n, A, shiftA, lda, strideA, S, strideS, U, ldu, strideU,
         V, ldv, strideV, info, batch_count, (T*)VUtmp, UVtmpZ, (T*)scalars, work1, work2, work3,
-        work4, work5_ipiv, splits, tmptau_W, tau, workArr, workArr2);
+        work4, work5_ipiv, splits, tmptau_W, tau, workArr, workArr2, props);
 }
 
 ROCSOLVER_END_NAMESPACE
