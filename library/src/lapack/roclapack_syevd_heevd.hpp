@@ -235,7 +235,8 @@ rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
                                               rocblas_int* splits,
                                               T* tmptau_W,
                                               T* tau,
-                                              T** workArr)
+                                              T** workArr,
+                                              hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("syevd_heevd", "evect:", evect, "uplo:", uplo, "n:", n, "shiftA:", shiftA,
                     "lda:", lda, "bc:", batch_count);
@@ -319,9 +320,10 @@ rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
         const rocblas_int ldw = n;
         const rocblas_stride strideW = n * n;
 
-        rocsolver_stedc_template<false, ISBATCHED, T>(
-            handle, rocblas_evect_tridiagonal, n, D, 0, strideD, E, 0, strideE, tmptau_W, 0, ldw,
-            strideW, info, batch_count, work3, (S*)work2, (S*)work1, tmpz, splits, (S**)workArr);
+        rocsolver_stedc_template<false, ISBATCHED, T>(handle, rocblas_evect_tridiagonal, n, D, 0,
+                                                      strideD, E, 0, strideE, tmptau_W, 0, ldw,
+                                                      strideW, info, batch_count, work3, (S*)work2,
+                                                      (S*)work1, tmpz, splits, (S**)workArr, props);
 
         // update the eigenvectors (if applicable)
         if(evect == rocblas_evect_original)
@@ -367,7 +369,8 @@ rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
                                               T* tmptau_W,
                                               T* tau,
                                               T** workArr,
-                                              bool optim_mem)
+                                              bool optim_mem,
+                                              hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("syevd_heevd", "evect:", evect, "uplo:", uplo, "n:", n, "shiftA:", shiftA,
                     "lda:", lda, "bc:", batch_count);
@@ -421,9 +424,10 @@ rocblas_status rocsolver_syevd_heevd_template(rocblas_handle handle,
         const rocblas_int ldw = n;
         const rocblas_stride strideW = n * n;
 
-        rocsolver_stedc_template<false, ISBATCHED, T>(
-            handle, rocblas_evect_tridiagonal, n, D, 0, strideD, E, 0, strideE, tmptau_W, 0, ldw,
-            strideW, info, batch_count, work3, (S*)work2, (S*)work1, tmpz, splits, (S**)workArr);
+        rocsolver_stedc_template<false, ISBATCHED, T>(handle, rocblas_evect_tridiagonal, n, D, 0,
+                                                      strideD, E, 0, strideE, tmptau_W, 0, ldw,
+                                                      strideW, info, batch_count, work3, (S*)work2,
+                                                      (S*)work1, tmpz, splits, (S**)workArr, props);
 
         // update the eigenvectors (if applicable)
         if(evect == rocblas_evect_original)

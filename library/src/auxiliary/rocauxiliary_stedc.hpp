@@ -2283,7 +2283,8 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
                                         S* tempgemm,
                                         S* tmpz,
                                         rocblas_int* splits,
-                                        S** workArr)
+                                        S** workArr,
+                                        hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("stedc", "evect:", evect, "n:", n, "shiftD:", shiftD, "shiftE:", shiftE,
                     "shiftC:", shiftC, "ldc:", ldc, "bc:", batch_count);
@@ -2322,7 +2323,7 @@ rocblas_status rocsolver_stedc_template(rocblas_handle handle,
     else if(n < STEDC_MIN_DC_SIZE)
     {
         rocsolver_steqr_template<T>(handle, evect, n, D, shiftD, strideD, E, shiftE, strideE, C,
-                                    shiftC, ldc, strideC, info, batch_count, work_stack);
+                                    shiftC, ldc, strideC, info, batch_count, work_stack, props);
     }
 
     // otherwise use divide and conquer algorithm:

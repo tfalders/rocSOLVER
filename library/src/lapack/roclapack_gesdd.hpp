@@ -413,9 +413,9 @@ rocblas_status rocsolver_gesdd_template(rocblas_handle handle,
                        0, ldv_gemm, strideV_gemm, batch_count, (T**)workArr);
 
         rocsolver_syevd_heevd_template<false, STRIDED, T>(
-            handle, rocblas_evect_original, rocblas_fill_upper, n, V_gemm, 0, ldv_gemm,
-            strideV_gemm, S, strideS, (SS*)workArr, strideS, info, batch_count, scalars, work1,
-            work2, work3, (SS*)UVtmpZ, (rocblas_int*)splits, (T*)tmptau_W, (T*)tau, (T**)workArr2);
+            handle, rocblas_evect_original, rocblas_fill_upper, n, V_gemm, 0, ldv_gemm, strideV_gemm,
+            S, strideS, (SS*)workArr, strideS, info, batch_count, scalars, work1, work2, work3,
+            (SS*)UVtmpZ, (rocblas_int*)splits, (T*)tmptau_W, (T*)tau, (T**)workArr2, props);
 
         // Compute AV
         T* U_gemm = (leftv ? U : (T*)UVtmpZ);
@@ -469,9 +469,9 @@ rocblas_status rocsolver_gesdd_template(rocblas_handle handle,
                        0, ldu_gemm, strideU_gemm, batch_count, (T**)workArr);
 
         rocsolver_syevd_heevd_template<false, STRIDED, T>(
-            handle, rocblas_evect_original, rocblas_fill_upper, m, U_gemm, 0, ldu_gemm,
-            strideU_gemm, S, strideS, (SS*)workArr, strideS, info, batch_count, scalars, work1,
-            work2, work3, (SS*)UVtmpZ, (rocblas_int*)splits, (T*)tmptau_W, (T*)tau, (T**)workArr2);
+            handle, rocblas_evect_original, rocblas_fill_upper, m, U_gemm, 0, ldu_gemm, strideU_gemm,
+            S, strideS, (SS*)workArr, strideS, info, batch_count, scalars, work1, work2, work3,
+            (SS*)UVtmpZ, (rocblas_int*)splits, (T*)tmptau_W, (T*)tau, (T**)workArr2, props);
 
         // Compute U^*A
         T* V_gemm = (rightv ? V : (T*)UVtmpZ);

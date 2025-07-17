@@ -1,5 +1,5 @@
 /* **************************************************************************
- * Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2021-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +60,12 @@ rocblas_status rocsolver_syev_heev_impl(rocblas_handle handle,
     rocblas_stride strideE = 0;
     rocblas_int batch_count = 1;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size for constants in rocblas calls
     size_t size_scalars;
@@ -101,7 +107,8 @@ rocblas_status rocsolver_syev_heev_impl(rocblas_handle handle,
     // execution
     return rocsolver_syev_heev_template<false, false, T>(
         handle, evect, uplo, n, A, shiftA, lda, strideA, D, strideD, E, strideE, info, batch_count,
-        (T*)scalars, work_stack, (T*)Abyx_norms_tmptr, (T*)tmptau_trfact, (T*)tau, (T**)workArr);
+        (T*)scalars, work_stack, (T*)Abyx_norms_tmptr, (T*)tmptau_trfact, (T*)tau, (T**)workArr,
+        props);
 }
 
 ROCSOLVER_END_NAMESPACE

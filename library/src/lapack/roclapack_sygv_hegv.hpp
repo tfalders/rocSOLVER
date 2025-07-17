@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
- * Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2021-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -196,7 +196,8 @@ rocblas_status rocsolver_sygv_hegv_template(rocblas_handle handle,
                                             void* work4,
                                             void* pivots_workArr,
                                             rocblas_int* iinfo,
-                                            bool optim_mem)
+                                            bool optim_mem,
+                                            hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("sygv_hegv", "itype:", itype, "evect:", evect, "uplo:", uplo, "n:", n,
                     "shiftA:", shiftA, "lda:", lda, "shiftB:", shiftB, "ldb:", ldb,
@@ -245,7 +246,7 @@ rocblas_status rocsolver_sygv_hegv_template(rocblas_handle handle,
 
     rocsolver_syev_heev_template<BATCHED, STRIDED, T>(
         handle, evect, uplo, n, A, shiftA, lda, strideA, D, strideD, E, strideE, iinfo, batch_count,
-        scalars, work1, (T*)work2, (T*)work3, (T*)work4, (T**)pivots_workArr);
+        scalars, work1, (T*)work2, (T*)work3, (T*)work4, (T**)pivots_workArr, props);
 
     // combine info from POTRF with info from SYEV/HEEV
     ROCSOLVER_LAUNCH_KERNEL(sygv_update_info, gridReset, threads, 0, stream, info, iinfo, n,

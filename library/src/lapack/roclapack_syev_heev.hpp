@@ -197,7 +197,8 @@ rocblas_status rocsolver_syev_heev_template(rocblas_handle handle,
                                             T* Abyx_norms_tmptr,
                                             T* tmptau_trfact,
                                             T* tau,
-                                            T** workArr)
+                                            T** workArr,
+                                            hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("syev_heev", "evect:", evect, "uplo:", uplo, "n:", n, "shiftA:", shiftA,
                     "lda:", lda, "bc:", batch_count);
@@ -248,7 +249,7 @@ rocblas_status rocsolver_syev_heev_template(rocblas_handle handle,
 
         // compute eigenvalues and eigenvectors
         rocsolver_steqr_template<T>(handle, evect, n, D, 0, strideD, E, 0, strideE, A, shiftA, lda,
-                                    strideA, info, batch_count, work_stack);
+                                    strideA, info, batch_count, work_stack, props);
     }
 
     return rocblas_status_success;

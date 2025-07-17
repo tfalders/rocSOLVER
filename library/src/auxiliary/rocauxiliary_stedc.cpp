@@ -60,6 +60,12 @@ rocblas_status rocsolver_stedc_impl(rocblas_handle handle,
     rocblas_stride strideC = 0;
     rocblas_int batch_count = 1;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size for lasrt stack/stedc workspace
     size_t size_work_stack;
@@ -98,7 +104,7 @@ rocblas_status rocsolver_stedc_impl(rocblas_handle handle,
     return rocsolver_stedc_template<false, false, T>(
         handle, evect, n, D, shiftD, strideD, E, shiftE, strideE, C, shiftC, ldc, strideC, info,
         batch_count, work_stack, (S*)tempvect, (S*)tempgemm, (S*)tmpz, (rocblas_int*)splits_map,
-        (S**)workArr);
+        (S**)workArr, props);
 }
 
 ROCSOLVER_END_NAMESPACE

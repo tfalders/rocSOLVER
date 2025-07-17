@@ -772,7 +772,8 @@ rocblas_status rocsolver_steqr_template(rocblas_handle handle,
                                         const rocblas_stride strideC,
                                         rocblas_int* info,
                                         const rocblas_int batch_count,
-                                        void* work_stack)
+                                        void* work_stack,
+                                        hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("steqr", "evect:", evect, "n:", n, "shiftD:", shiftD, "shiftE:", shiftE,
                     "shiftC:", shiftC, "ldc:", ldc, "bc:", batch_count);
@@ -829,15 +830,9 @@ rocblas_status rocsolver_steqr_template(rocblas_handle handle,
         }
         else
         {
-            int device;
-            HIP_CHECK(hipGetDevice(&device));
-            hipDeviceProp_t deviceProperties;
-            HIP_CHECK(hipGetDeviceProperties(&deviceProperties, device));
-
-            ROCSOLVER_LAUNCH_KERNEL((steqr_kernel<T>), dim3(1, batch_count),
-                                    dim3(deviceProperties.warpSize), 0, stream, n, D + shiftD,
-                                    strideD, E + shiftE, strideE, C, shiftC, ldc, strideC, info,
-                                    (S*)work_stack, 30 * n, eps, ssfmin, ssfmax);
+            ROCSOLVER_LAUNCH_KERNEL((steqr_kernel<T>), dim3(1, batch_count), dim3(props.warpSize), 0,
+                                    stream, n, D + shiftD, strideD, E + shiftE, strideE, C, shiftC,
+                                    ldc, strideC, info, (S*)work_stack, 30 * n, eps, ssfmin, ssfmax);
         }
     }
 

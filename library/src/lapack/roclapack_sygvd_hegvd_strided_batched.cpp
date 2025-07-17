@@ -66,6 +66,12 @@ rocblas_status rocsolver_sygvd_hegvd_strided_batched_impl(rocblas_handle handle,
     rocblas_int shiftA = 0;
     rocblas_int shiftB = 0;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size for constants in rocblas calls
     size_t size_scalars;
@@ -113,7 +119,7 @@ rocblas_status rocsolver_sygvd_hegvd_strided_batched_impl(rocblas_handle handle,
     return rocsolver_sygvd_hegvd_template<false, true, T>(
         handle, itype, evect, uplo, n, A, shiftA, lda, strideA, B, shiftB, ldb, strideB, D, strideD,
         E, strideE, info, batch_count, (T*)scalars, work1, work2, work3, work4, (S*)tmpz,
-        (rocblas_int*)splits, (T*)tau, pivots_workArr, (rocblas_int*)iinfo, optim_mem);
+        (rocblas_int*)splits, (T*)tau, pivots_workArr, (rocblas_int*)iinfo, optim_mem, props);
 }
 
 ROCSOLVER_END_NAMESPACE

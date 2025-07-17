@@ -1,5 +1,5 @@
 /* **************************************************************************
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +60,12 @@ rocblas_status rocsolver_steqr_impl(rocblas_handle handle,
     rocblas_stride strideC = 0;
     rocblas_int batch_count = 1;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size for lasrt stack/steqr workspace
     size_t size_work_stack;
@@ -78,7 +84,7 @@ rocblas_status rocsolver_steqr_impl(rocblas_handle handle,
 
     // execution
     return rocsolver_steqr_template<T>(handle, evect, n, D, shiftD, strideD, E, shiftE, strideE, C,
-                                       shiftC, ldc, strideC, info, batch_count, work_stack);
+                                       shiftC, ldc, strideC, info, batch_count, work_stack, props);
 }
 
 ROCSOLVER_END_NAMESPACE

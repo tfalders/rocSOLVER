@@ -154,7 +154,8 @@ rocblas_status rocsolver_sygvd_hegvd_template(rocblas_handle handle,
                                               T* tau,
                                               void* pivots_workArr,
                                               rocblas_int* iinfo,
-                                              bool optim_mem)
+                                              bool optim_mem,
+                                              hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("sygvd_hegvd", "itype:", itype, "evect:", evect, "uplo:", uplo, "n:", n,
                     "shiftA:", shiftA, "lda:", lda, "shiftB:", shiftB, "ldb:", ldb,
@@ -203,7 +204,7 @@ rocblas_status rocsolver_sygvd_hegvd_template(rocblas_handle handle,
 
     rocsolver_syevd_heevd_template<BATCHED, STRIDED, T>(
         handle, evect, uplo, n, A, shiftA, lda, strideA, D, strideD, E, strideE, iinfo, batch_count,
-        scalars, work1, work2, work3, tmpz, splits, (T*)work4, tau, (T**)pivots_workArr);
+        scalars, work1, work2, work3, tmpz, splits, (T*)work4, tau, (T**)pivots_workArr, props);
 
     // combine info from POTRF with info from SYEV/HEEV
     ROCSOLVER_LAUNCH_KERNEL(sygv_update_info, gridReset, threads, 0, stream, info, iinfo, n,
