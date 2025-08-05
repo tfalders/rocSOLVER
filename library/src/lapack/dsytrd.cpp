@@ -2,15 +2,10 @@
 #include <cstring>
 #include <type_traits>
 
-#ifdef __HIPCC__
 #include <hip/hip_cooperative_groups.h>
 #include <hip/hip_runtime.h>
+#include <rocblas/rocblas.h>
 #include <rocprim/rocprim.hpp>
-#else
-#include "hip2cuda.h"
-#include <cooperative_groups.h>
-#include <cub/cub.cuh>
-#endif
 
 #include "barrier.h"
 #include "trace.h"

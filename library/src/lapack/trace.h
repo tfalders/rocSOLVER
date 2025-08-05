@@ -17,7 +17,7 @@
             fprintf(stderr, "  Error code: %d (%s)\n", static_cast<int>(err), hipGetErrorName(err)); \
             fprintf(stderr, "  Error message: %s\n", hipGetErrorString(err));                        \
             assert(false);                                                                           \
-            throw(_status);                                                                          \
+            throw(err);                                                                              \
         }                                                                                            \
     } while(0)
 
