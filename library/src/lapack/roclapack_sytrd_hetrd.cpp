@@ -1,5 +1,5 @@
 /* **************************************************************************
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -106,17 +106,17 @@ ROCSOLVER_END_NAMESPACE
 
 extern "C" {
 
-rocblas_status rocsolver_ssytrd(rocblas_handle handle,
-                                const rocblas_fill uplo,
-                                const rocblas_int n,
-                                float* A,
-                                const rocblas_int lda,
-                                float* D,
-                                float* E,
-                                float* tau)
-{
-    return rocsolver::rocsolver_sytrd_hetrd_impl<float>(handle, uplo, n, A, lda, D, E, tau);
-}
+// rocblas_status rocsolver_ssytrd(rocblas_handle handle,
+//                                 const rocblas_fill uplo,
+//                                 const rocblas_int n,
+//                                 float* A,
+//                                 const rocblas_int lda,
+//                                 float* D,
+//                                 float* E,
+//                                 float* tau)
+// {
+//     return rocsolver::rocsolver_sytrd_hetrd_impl<float>(handle, uplo, n, A, lda, D, E, tau);
+// }
 
 // rocblas_status rocsolver_dsytrd(rocblas_handle handle,
 //                                 const rocblas_fill uplo,
