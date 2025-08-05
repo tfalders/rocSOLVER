@@ -68,11 +68,31 @@ __device__ __forceinline__ void swap(T& a, T& b)
 }
 
 template <typename T>
-__device__ void swap(const rocblas_int n, T* a, const rocblas_int inca, T* b, const rocblas_int incb)
+__device__ __host__ void
+    swap(const rocblas_int n, T* a, const rocblas_int inca, T* b, const rocblas_int incb)
 {
     int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
     if(tid < n)
         swap(a[inca * tid], b[incb * tid]);
+}
+
+template <typename T, std::enable_if_t<!rocblas_is_complex<T>, int> = 0>
+__device__ __inline__ T shift_left(T& value, int lane_delta)
+{
+    T r = value;
+    r = __shfl_down(r, lane_delta);
+    return r;
+}
+
+template <typename T, std::enable_if_t<rocblas_is_complex<T>, int> = 0>
+__device__ __inline__ T shift_left(T& value, int lane_delta)
+{
+    using S = decltype(std::real(T{}));
+    S r = value.real();
+    S i = value.imag();
+    r = __shfl_down(r, lane_delta);
+    i = __shfl_down(i, lane_delta);
+    return rocblas_complex_num<S>(r, i);
 }
 
 /** SWAPVECT device function swap vectors a and b of dimension n **/
@@ -203,7 +223,7 @@ __device__ static void shell_sort_ascending(const I n, S* a, I* map = nullptr)
     {
         for(auto k = k_start; k < (n - 1); k += k_inc)
         {
-            assert(a[k] <= a[k + 1]);
+            assert(std::isnan(a[k]) || std::isnan(a[k + 1]) || a[k] <= a[k + 1]);
         };
     };
     __syncthreads();
@@ -287,7 +307,7 @@ __device__ static void shell_sort_descending(const I n, S* a, I* map = nullptr)
     {
         for(auto k = k_start; k < (n - 1); k += k_inc)
         {
-            assert(a[k] >= a[k + 1]);
+            assert(std::isnan(a[k]) || std::isnan(a[k + 1]) || a[k] >= a[k + 1]);
         };
     };
     __syncthreads();
@@ -389,7 +409,7 @@ __device__ static void selection_sort_ascending(const I n, S* D, I* map = nullpt
     {
         for(auto k = k_start; k < (n - 1); k += k_inc)
         {
-            assert(D[k] <= D[k + 1]);
+            assert(std::isnan(D[k]) || std::isnan(D[k + 1]) || D[k] <= D[k + 1]);
         };
     };
     __syncthreads();
@@ -473,7 +493,7 @@ __device__ static void selection_sort_descending(const I n, S* D, I* map = nullp
     {
         for(auto k = k_start; k < (n - 1); k += k_inc)
         {
-            assert(D[k] >= D[k + 1]);
+            assert(std::isnan(D[k]) || std::isnan(D[k + 1]) || D[k] >= D[k + 1]);
         };
     };
     __syncthreads();
@@ -572,7 +592,7 @@ __device__ static void permute_swap(const I n, T* C, I ldc, I* map, const I nev 
     __syncthreads();
     for(auto k = k_start; k < nn; k += k_inc)
     {
-        assert(map[k] == k);
+        assert(std::isnan(map[k]) || map[k] == k);
     }
     __syncthreads();
 #endif
@@ -1250,7 +1270,7 @@ ROCSOLVER_KERNEL void check_singularity(const rocblas_int n,
 /** SWAP swaps the values of vectors x and y of dimension n.
     Launch this kernel with a desired number of threads organized in
     NG groups in the x direction with NT threads in the x direction. **/
-template <typename S, typename T, typename I>
+template <typename T, typename I>
 ROCSOLVER_KERNEL void swap_kernel(I const n, T* const x, I const incx, T* const y, I const incy)
 {
     if(n <= 0)
