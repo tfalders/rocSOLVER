@@ -139,6 +139,12 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle,
     I ldw = GEQxF_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) * ldw;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     while(j < dim - GEQxF_GEQx2_SWITCHSIZE)
     {
         // Factor diagonal and subdiagonal blocks
@@ -154,7 +160,7 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle,
             rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise,
                                         m - j, jb, A, shiftA + idx2D(j, j, lda), lda, strideA,
                                         (ipiv + j), strideP, Abyx_norms_trfact, ldw, strideW,
-                                        batch_count, scalars, (T*)work_workArr, workArr);
+                                        batch_count, scalars, (T*)work_workArr, workArr, props);
 
             // apply the block reflector
             rocsolver_larfb_template<BATCHED, STRIDED, T>(
@@ -290,6 +296,12 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle,
     I ldw = GEQxF_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) * ldw;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     while(j < dim - GEQxF_GEQx2_SWITCHSIZE)
     {
         // Factor diagonal and subdiagonal blocks
@@ -305,7 +317,7 @@ rocblas_status rocsolver_geqrf_template(rocblas_handle handle,
             rocsolver_larft_inverse_template<T>(
                 handle, rocblas_forward_direction, rocblas_column_wise, m - j, jb, A,
                 shiftA + idx2D(j, j, lda), lda, strideA, (ipiv + j), strideP, Abyx_norms_trfact,
-                ldw, strideW, batch_count, (T*)work_workArr_work1, workArr);
+                ldw, strideW, batch_count, (T*)work_workArr_work1, workArr, props);
 
             rocsolver_larfb_inverse_template<BATCHED, STRIDED, T>(
                 handle, rocblas_side_left, rocblas_operation_conjugate_transpose,

@@ -526,7 +526,8 @@ rocblas_status rocsolver_larft_template(rocblas_handle handle,
                                         const rocblas_int batch_count,
                                         T* scalars,
                                         T* work,
-                                        T** workArr)
+                                        T** workArr,
+                                        hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("larft", "direct:", direct, "storev:", storev, "n:", n, "k:", k,
                     "shiftV:", shiftV, "ldv:", ldv, "ldf:", ldf, "bc:", batch_count);
@@ -597,12 +598,7 @@ rocblas_status rocsolver_larft_template(rocblas_handle handle,
     ROCSOLVER_LAUNCH_KERNEL(set_tau, dim3(blocks, batch_count), dim3(32, 1), 0, stream, k, tau,
                             strideT);
 
-    int device;
-    HIP_CHECK(hipGetDevice(&device));
-    hipDeviceProp_t props;
-    HIP_CHECK(hipGetDeviceProperties(&props, device));
     size_t lmemsize = sizeof(T) * (k + 1) * k;
-
     rocblas_set_pointer_mode(handle, rocblas_pointer_mode_device);
 
     if(direct == rocblas_forward_direction)
@@ -853,7 +849,8 @@ rocblas_status rocsolver_larft_inverse_template(rocblas_handle handle,
                                                 const rocblas_stride strideF,
                                                 const rocblas_int batch_count,
                                                 T* work,
-                                                T** workArr)
+                                                T** workArr,
+                                                hipDeviceProp_t& props)
 {
     ROCSOLVER_ENTER("larft_inverse", "direct:", direct, "storev:", storev, "n:", n, "k:", k,
                     "shiftV:", shiftV, "ldv:", ldv, "ldf:", ldf, "bc:", batch_count);

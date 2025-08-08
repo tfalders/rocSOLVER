@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     December 2016
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -127,6 +127,12 @@ rocblas_status rocsolver_orgql_ungql_template(rocblas_handle handle,
     rocblas_int ldw = xxGQx_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) * ldw;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // size of unblocked part
     rocblas_int jb = ldw;
     rocblas_int kk = std::min(k, ((k - xxGQx_xxGQx2_SWITCHSIZE + jb - 1) / jb) * jb);
@@ -159,7 +165,7 @@ rocblas_status rocsolver_orgql_ungql_template(rocblas_handle handle,
             rocsolver_larft_template<T>(handle, rocblas_backward_direction, rocblas_column_wise,
                                         m - k + j + jb, jb, A, shiftA + idx2D(0, n - k + j, lda),
                                         lda, strideA, (ipiv + j), strideP, trfact, ldw, strideW,
-                                        batch_count, scalars, work, workArr);
+                                        batch_count, scalars, work, workArr, props);
 
             rocsolver_larfb_template<BATCHED, STRIDED, T>(
                 handle, rocblas_side_left, rocblas_operation_none, rocblas_backward_direction,

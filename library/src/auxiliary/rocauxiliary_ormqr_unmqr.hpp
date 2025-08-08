@@ -193,6 +193,12 @@ rocblas_status rocsolver_ormqr_unmqr_template(rocblas_handle handle,
     rocblas_int ldw = xxMQx_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) * ldw;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // determine limits and indices
     bool left = (side == rocblas_side_left);
     bool transpose = (trans != rocblas_operation_none);
@@ -248,8 +254,9 @@ rocblas_status rocsolver_ormqr_unmqr_template(rocblas_handle handle,
 
         // generate triangular factor of current block reflector
         rocsolver_larft_template<T>(handle, rocblas_forward_direction, rocblas_column_wise, nq - i,
-                                    ib, A, shiftA + idx2D(i, i, lda), lda, strideA, ipiv + i, strideP,
-                                    trfact, ldw, strideW, batch_count, scalars, AbyxORwork, workArr);
+                                    ib, A, shiftA + idx2D(i, i, lda), lda, strideA, ipiv + i,
+                                    strideP, trfact, ldw, strideW, batch_count, scalars, AbyxORwork,
+                                    workArr, props);
 
         // apply current block reflector
         rocsolver_larfb_template<BATCHED, STRIDED, T>(
@@ -310,6 +317,12 @@ rocblas_status rocsolver_ormqr_unmqr_template(rocblas_handle handle,
     rocblas_int ldw = xxMQx_BLOCKSIZE;
     rocblas_stride strideW = rocblas_stride(ldw) * ldw;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // determine limits and indices
     bool left = (side == rocblas_side_left);
     bool transpose = (trans != rocblas_operation_none);
@@ -367,7 +380,7 @@ rocblas_status rocsolver_ormqr_unmqr_template(rocblas_handle handle,
         rocsolver_larft_inverse_template<T>(handle, rocblas_forward_direction, rocblas_column_wise,
                                             nq - i, ib, A, shiftA + idx2D(i, i, lda), lda, strideA,
                                             ipiv + i, strideP, trfact, ldw, strideW, batch_count,
-                                            AbyxORwork, workArr);
+                                            AbyxORwork, workArr, props);
 
         // apply current block reflector
         rocsolver_larfb_inverse_template<BATCHED, STRIDED, T>(
