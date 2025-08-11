@@ -1,5 +1,5 @@
 /* **************************************************************************
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,6 +53,12 @@ rocblas_status
     rocblas_stride strideP = 0;
     I batch_count = 1;
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // memory workspace sizes:
     // size of re-usable workspace
     size_t size_work;
@@ -74,7 +80,7 @@ rocblas_status
 
     // execution
     return rocsolver_larfg_template<T>(handle, n, alpha, shifta, x, shiftx, incx, stridex, tau,
-                                       strideP, batch_count, (T*)work, (T*)norms);
+                                       strideP, batch_count, (T*)work, (T*)norms, props);
 }
 
 ROCSOLVER_END_NAMESPACE

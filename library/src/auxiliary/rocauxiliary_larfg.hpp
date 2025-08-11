@@ -240,7 +240,8 @@ rocblas_status rocsolver_larfg_template(rocblas_handle handle,
                                         const rocblas_stride strideP,
                                         const I batch_count,
                                         T* work,
-                                        T* norms)
+                                        T* norms,
+                                        hipDeviceProp_t& props)
 {
     // TODO: How to get alpha for trace logging
     ROCSOLVER_ENTER("larfg", "n:", n, "shiftA:", shifta, "shiftX:", shiftx, "incx:", incx,
@@ -273,11 +274,7 @@ rocblas_status rocsolver_larfg_template(rocblas_handle handle,
     if(true)
     {
         // TODO: Some architectures have failures in sygvx with small-size kernels enabled, more investigation needed
-        int device;
-        HIP_CHECK(hipGetDevice(&device));
-        hipDeviceProp_t deviceProperties;
-        HIP_CHECK(hipGetDeviceProperties(&deviceProperties, device));
-        if(deviceProperties.warpSize >= 64)
+        if(props.warpSize >= 64)
         {
             return larfg_run_small(handle, n, alpha, shifta, stridex, beta, shiftb, strideb, x,
                                    shiftx, incx, stridex, tau, strideP, batch_count);
@@ -318,11 +315,13 @@ rocblas_status rocsolver_larfg_template(rocblas_handle handle,
                                         const rocblas_stride strideP,
                                         const I batch_count,
                                         T* work,
-                                        T* norms)
+                                        T* norms,
+                                        hipDeviceProp_t& props)
 {
     using S = decltype(std::real(T{}));
     return rocsolver_larfg_template<T, I, S>(handle, n, alpha, shifta, (S*)nullptr, 0, 0, x, shiftx,
-                                             incx, stridex, tau, strideP, batch_count, work, norms);
+                                             incx, stridex, tau, strideP, batch_count, work, norms,
+                                             props);
 }
 
 ROCSOLVER_END_NAMESPACE

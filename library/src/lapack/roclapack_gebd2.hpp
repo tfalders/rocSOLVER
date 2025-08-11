@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     June 2017
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -129,6 +129,12 @@ rocblas_status rocsolver_gebd2_template(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     rocblas_int dim = std::min(m, n); // total number of pivots
 
     if(m >= n)
@@ -139,7 +145,8 @@ rocblas_status rocsolver_gebd2_template(rocblas_handle handle,
             // generate Householder reflector H(j)
             rocsolver_larfg_template(handle, m - j, A, shiftA + idx2D(j, j, lda), A,
                                      shiftA + idx2D(std::min(j + 1, m - 1), j, lda), 1, strideA,
-                                     (tauq + j), strideQ, batch_count, (T*)work_workArr, Abyx_norms);
+                                     (tauq + j), strideQ, batch_count, (T*)work_workArr, Abyx_norms,
+                                     props);
 
             // copy A(j,j) to D and insert one to build/apply the householder matrix
             ROCSOLVER_LAUNCH_KERNEL((set_diag<T, rocblas_int>), dim3(batch_count, 1, 1),
@@ -178,7 +185,7 @@ rocblas_status rocsolver_gebd2_template(rocblas_handle handle,
                 rocsolver_larfg_template(handle, n - j - 1, A, shiftA + idx2D(j, j + 1, lda), A,
                                          shiftA + idx2D(j, std::min(j + 2, n - 1), lda), lda,
                                          strideA, (taup + j), strideP, batch_count,
-                                         (T*)work_workArr, Abyx_norms);
+                                         (T*)work_workArr, Abyx_norms, props);
 
                 // copy A(j,j+1) to E and insert one to build/apply the householder
                 // matrix
@@ -221,7 +228,8 @@ rocblas_status rocsolver_gebd2_template(rocblas_handle handle,
             // generate Householder reflector G(j)
             rocsolver_larfg_template(handle, n - j, A, shiftA + idx2D(j, j, lda), A,
                                      shiftA + idx2D(j, std::min(j + 1, n - 1), lda), lda, strideA,
-                                     (taup + j), strideP, batch_count, (T*)work_workArr, Abyx_norms);
+                                     (taup + j), strideP, batch_count, (T*)work_workArr, Abyx_norms,
+                                     props);
 
             // copy A(j,j) to D and insert one to build/apply the householder matrix
             ROCSOLVER_LAUNCH_KERNEL((set_diag<T, rocblas_int>), dim3(batch_count, 1, 1),
@@ -252,7 +260,7 @@ rocblas_status rocsolver_gebd2_template(rocblas_handle handle,
                 rocsolver_larfg_template(handle, m - j - 1, A, shiftA + idx2D(j + 1, j, lda), A,
                                          shiftA + idx2D(std::min(j + 2, m - 1), j, lda), 1, strideA,
                                          (tauq + j), strideQ, batch_count, (T*)work_workArr,
-                                         Abyx_norms);
+                                         Abyx_norms, props);
 
                 // copy A(j+1,j) to D and insert one to build/apply the householder
                 // matrix

@@ -630,7 +630,7 @@ rocblas_status rocsolver_sytd2_hetd2_template(rocblas_handle handle,
             // 1. generate Householder reflector to annihilate A(j+2:n-1,j) and copy off-diagonal element to E[j]
             rocsolver_larfg_template<T>(handle, n - 1 - j, A, shiftA + idx2D(j + 1, j, lda), E, j,
                                         strideE, A, shiftA + idx2D(std::min(j + 2, n - 1), j, lda),
-                                        1, strideA, tmptau, stridet, batch_count, work, norms);
+                                        1, strideA, tmptau, stridet, batch_count, work, norms, props);
 
             // 2. overwrite tau with w = tmptau*A*v - 1/2*tmptau*(tmptau*v'*A*v)*v
             rocblasCall_symv_hemv<T>(handle, uplo, n - 1 - j, tmptau, stridet, A,
@@ -675,7 +675,7 @@ rocblas_status rocsolver_sytd2_hetd2_template(rocblas_handle handle,
             // 1. generate Householder reflector to annihilate A(0:j-2,j) and copy off-diagonal element to E[j-1]
             rocsolver_larfg_template<T>(handle, j, A, shiftA + idx2D(j - 1, j, lda), E, j - 1,
                                         strideE, A, shiftA + idx2D(0, j, lda), 1, strideA, tmptau,
-                                        1, batch_count, work, norms);
+                                        1, batch_count, work, norms, props);
 
             // 2. overwrite tau with w = tmptau*A*v - 1/2*tmptau*tmptau*(v'*A*v*)v
             rocblasCall_symv_hemv<T>(handle, uplo, j, tmptau, stridet, A, shiftA, lda, strideA, A,

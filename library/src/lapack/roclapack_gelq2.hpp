@@ -4,7 +4,7 @@
  *     Univ. of Tennessee, Univ. of California Berkeley,
  *     Univ. of Colorado Denver and NAG Ltd..
  *     November 2019
- * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -126,6 +126,12 @@ rocblas_status rocsolver_gelq2_template(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     rocblas_int dim = std::min(m, n); // total number of pivots
 
     for(rocblas_int j = 0; j < dim; ++j)
@@ -138,7 +144,8 @@ rocblas_status rocsolver_gelq2_template(rocblas_handle handle,
         // generate Householder reflector to work on row j
         rocsolver_larfg_template(handle, n - j, A, shiftA + idx2D(j, j, lda), A,
                                  shiftA + idx2D(j, std::min(j + 1, n - 1), lda), lda, strideA,
-                                 (ipiv + j), strideP, batch_count, (T*)work_workArr, Abyx_norms);
+                                 (ipiv + j), strideP, batch_count, (T*)work_workArr, Abyx_norms,
+                                 props);
 
         // insert one in A(j,j) tobuild/apply the householder matrix
         ROCSOLVER_LAUNCH_KERNEL((set_diag<T, rocblas_int>), dim3(batch_count, 1, 1), dim3(1, 1, 1),

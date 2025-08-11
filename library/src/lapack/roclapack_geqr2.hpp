@@ -254,8 +254,8 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
-    // get device prop
-    int device;
+    // get device properties
+    rocblas_int device;
     HIP_CHECK(hipGetDevice(&device));
     hipDeviceProp_t props;
     HIP_CHECK(hipGetDeviceProperties(&props, device));
@@ -277,8 +277,9 @@ rocblas_status rocsolver_geqr2_template(rocblas_handle handle,
 
         // generate Householder reflector to work on column j
         rocsolver_larfg_template<T>(handle, m - j, A, shiftA + idx2D(j, j, lda), (S*)diag, j, dim,
-                                    A, shiftA + idx2D(std::min(j + 1, m - 1), j, lda), (I)1, strideA,
-                                    (ipiv + j), strideP, batch_count, (T*)work_workArr, Abyx_norms);
+                                    A, shiftA + idx2D(std::min(j + 1, m - 1), j, lda), (I)1,
+                                    strideA, (ipiv + j), strideP, batch_count, (T*)work_workArr,
+                                    Abyx_norms, props);
 
         // Apply Householder reflector to the rest of matrix from the left
         if(j < n - 1)

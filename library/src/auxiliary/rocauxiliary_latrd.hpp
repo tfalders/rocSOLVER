@@ -230,6 +230,12 @@ rocblas_status rocsolver_latrd_template(rocblas_handle handle,
     rocblas_get_pointer_mode(handle, &old_mode);
     rocblas_set_pointer_mode(handle, rocblas_pointer_mode_device);
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     if(uplo == rocblas_fill_lower)
     {
         // reduce the first k columns of A
@@ -268,7 +274,7 @@ rocblas_status rocsolver_latrd_template(rocblas_handle handle,
             // generate Householder reflector to work on column j
             rocsolver_larfg_template(handle, n - j - 1, A, shiftA + idx2D(j + 1, j, lda), E, j,
                                      strideE, A, shiftA + idx2D(std::min(j + 2, n - 1), j, lda), 1,
-                                     strideA, (tau + j), strideP, batch_count, work, norms);
+                                     strideA, (tau + j), strideP, batch_count, work, norms, props);
 
             // compute/update column j of W
             rocblasCall_symv_hemv<T>(
@@ -350,7 +356,7 @@ rocblas_status rocsolver_latrd_template(rocblas_handle handle,
             // generate Householder reflector to work on column j
             rocsolver_larfg_template(handle, j, A, shiftA + idx2D(j - 1, j, lda), E, j - 1, strideE,
                                      A, shiftA + idx2D(0, j, lda), 1, strideA, (tau + j - 1),
-                                     strideP, batch_count, work, norms);
+                                     strideP, batch_count, work, norms, props);
 
             // compute/update column j of W
             rocblasCall_symv_hemv<T>(handle, uplo, j, (scalars + 2), 0, A, shiftA, lda, strideA, A,
@@ -2002,6 +2008,12 @@ rocblas_status rocsolver_latrd_forsytrd_template(rocblas_handle handle,
     hipStream_t stream;
     rocblas_get_stream(handle, &stream);
 
+    // get device properties
+    rocblas_int device;
+    HIP_CHECK(hipGetDevice(&device));
+    hipDeviceProp_t props;
+    HIP_CHECK(hipGetDeviceProperties(&props, device));
+
     // configure updateA and updateW kernels:
     rocblas_int dr, dc;
     rocblas_int thr_updates, thc_updates;
@@ -2031,7 +2043,7 @@ rocblas_status rocsolver_latrd_forsytrd_template(rocblas_handle handle,
             //----------------------------------------------------------
             rocsolver_larfg_template(handle, n - j - 1, A, shiftA + idx2D(j + 1, j, lda), E, j,
                                      strideE, A, shiftA + idx2D(std::min(j + 2, n - 1), j, lda), 1,
-                                     strideA, (tau + j), strideP, batch_count, work, norms);
+                                     strideA, (tau + j), strideP, batch_count, work, norms, props);
             //-----------------------------------------------------------
 
             // compute column j of W
@@ -2081,7 +2093,7 @@ rocblas_status rocsolver_latrd_forsytrd_template(rocblas_handle handle,
             //----------------------------------------------------------
             rocsolver_larfg_template(handle, j, A, shiftA + idx2D(j - 1, j, lda), E, j - 1, strideE,
                                      A, shiftA + idx2D(0, j, lda), 1, strideA, (tau + j - 1),
-                                     strideP, batch_count, work, norms);
+                                     strideP, batch_count, work, norms, props);
             //----------------------------------------------------------
 
             // compute column j of W
