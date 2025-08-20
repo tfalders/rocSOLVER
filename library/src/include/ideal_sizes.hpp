@@ -62,6 +62,12 @@
 #define LARFG_SSKER_MAX_N 2048
 #endif
 
+/******************************* larft ****************************************
+*******************************************************************************/
+#ifndef LARFT_SWITCHSIZE
+#define LARFT_SWITCHSIZE 64
+#endif
+
 /***************** geqr2/geqrf and geql2/geqlf ********************************
 *******************************************************************************/
 /*! \brief Determines the size of the block column factorized at each step
@@ -234,6 +240,10 @@
     if any, will be reduced with the unblocked algorithm (SYTD2/HETD2).*/
 #ifndef xxTRD_xxTD2_SWITCHSIZE
 #define xxTRD_xxTD2_SWITCHSIZE 256
+#endif
+
+#ifndef xxTD2_SSKER_MAX_N
+#define xxTD2_SSKER_MAX_N 192
 #endif
 
 /***************** sygs2/sygst and hegs2/hegst ********************************
