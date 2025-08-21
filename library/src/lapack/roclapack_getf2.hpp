@@ -502,7 +502,7 @@ void rocsolver_getf2_getMemorySize(const I m,
     // for pivot indices
     size_t size_pivotidx = pivot ? sizeof(I) * batch_count : 0;
 
-    work_helper->assign_sizes({size_scalars, size_pivotval, size_pivotidx});
+    work_helper->assign_sizes({size_scalars, size_pivotval, size_pivotidx}, {});
 }
 
 /** argument checking **/
