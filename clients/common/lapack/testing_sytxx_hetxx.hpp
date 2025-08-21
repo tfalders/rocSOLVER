@@ -374,21 +374,38 @@ void sytxx_hetxx_getPerfData(const rocblas_handle handle,
         *cpu_time_used = get_time_us_no_sync() - *cpu_time_used;
     }
 
-    sytxx_hetxx_initData<true, false, T>(handle, n, dA, lda, bc, hA);
+    rocblas_handle handle2;
+    rocblas_create_handle(&handle2);
+
+    hipStream_t stream;
+    CHECK_HIP_ERROR(hipStreamCreate(&stream));
+    CHECK_ROCBLAS_ERROR(rocblas_set_stream(handle2, stream));
+
+    sytxx_hetxx_initData<true, true, T>(handle2, n, dA, lda, bc, hA);
+
+    CHECK_HIP_ERROR(hipStreamBeginCapture(stream, hipStreamCaptureModeGlobal));
+
+    CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle2, uplo, n, dA.data(), lda, stA,
+                                              dD.data(), stD, dE.data(), stE, dTau.data(), stP, bc));
+
+    hipGraph_t graph;
+    CHECK_HIP_ERROR(hipStreamEndCapture(stream, &graph));
+    hipGraphExec_t graphExec;
+    CHECK_HIP_ERROR(hipGraphInstantiate(&graphExec, graph, nullptr, nullptr, 0));
+    CHECK_HIP_ERROR(hipGraphDestroy(graph));
 
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
-        sytxx_hetxx_initData<false, true, T>(handle, n, dA, lda, bc, hA);
+        sytxx_hetxx_initData<false, true, T>(handle2, n, dA, lda, bc, hA);
 
-        CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda,
-                                                  stA, dD.data(), stD, dE.data(), stE, dTau.data(),
-                                                  stP, bc));
+        // CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda,
+        //                                           stA, dD.data(), stD, dE.data(), stE, dTau.data(),
+        //                                           stP, bc));
+        CHECK_HIP_ERROR(hipGraphLaunch(graphExec, stream));
     }
 
     // gpu-lapack performance
-    hipStream_t stream;
-    CHECK_ROCBLAS_ERROR(rocblas_get_stream(handle, &stream));
     double start;
 
     if(profile > 0)
@@ -403,14 +420,19 @@ void sytxx_hetxx_getPerfData(const rocblas_handle handle,
 
     for(rocblas_int iter = 0; iter < hot_calls; iter++)
     {
-        sytxx_hetxx_initData<false, true, T>(handle, n, dA, lda, bc, hA);
+        sytxx_hetxx_initData<false, true, T>(handle2, n, dA, lda, bc, hA);
 
         start = get_time_us_sync(stream);
-        rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda, stA, dD.data(), stD,
-                              dE.data(), stE, dTau.data(), stP, bc);
+        // rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda, stA, dD.data(), stD,
+        //                       dE.data(), stE, dTau.data(), stP, bc);
+        CHECK_HIP_ERROR(hipGraphLaunch(graphExec, stream));
         *gpu_time_used += get_time_us_sync(stream) - start;
     }
     *gpu_time_used /= hot_calls;
+
+    CHECK_ROCBLAS_ERROR(rocblas_destroy_handle(handle2));
+    CHECK_HIP_ERROR(hipStreamDestroy(stream));
+    CHECK_HIP_ERROR(hipGraphExecDestroy(graphExec));
 }
 
 template <bool BATCHED, bool STRIDED, bool SYTRD, typename T>
