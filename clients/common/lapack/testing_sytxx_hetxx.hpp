@@ -376,6 +376,10 @@ void sytxx_hetxx_getPerfData(const rocblas_handle handle,
 
     sytxx_hetxx_initData<true, false, T>(handle, n, dA, lda, bc, hA);
 
+    hipEvent_t start, end;
+    CHECK_HIP_ERROR(hipEventCreate(&start));
+    CHECK_HIP_ERROR(hipEventCreate(&end));
+
     // cold calls
     for(int iter = 0; iter < 2; iter++)
     {
@@ -389,7 +393,7 @@ void sytxx_hetxx_getPerfData(const rocblas_handle handle,
     // gpu-lapack performance
     hipStream_t stream;
     CHECK_ROCBLAS_ERROR(rocblas_get_stream(handle, &stream));
-    double start;
+    float time;
 
     if(profile > 0)
     {
@@ -405,12 +409,18 @@ void sytxx_hetxx_getPerfData(const rocblas_handle handle,
     {
         sytxx_hetxx_initData<false, true, T>(handle, n, dA, lda, bc, hA);
 
-        start = get_time_us_sync(stream);
+        CHECK_HIP_ERROR(hipEventRecord(start, stream));
         rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda, stA, dD.data(), stD,
                               dE.data(), stE, dTau.data(), stP, bc);
-        *gpu_time_used += get_time_us_sync(stream) - start;
+        CHECK_HIP_ERROR(hipEventRecord(end, stream));
+        CHECK_HIP_ERROR(hipStreamSynchronize(stream));
+        CHECK_HIP_ERROR(hipEventElapsedTime(&time, start, end));
+        *gpu_time_used += time;
     }
     *gpu_time_used /= hot_calls;
+
+    CHECK_HIP_ERROR(hipEventDestroy(start));
+    CHECK_HIP_ERROR(hipEventDestroy(end));
 }
 
 template <bool BATCHED, bool STRIDED, bool SYTRD, typename T>
