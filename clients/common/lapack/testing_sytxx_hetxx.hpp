@@ -240,15 +240,39 @@ void sytxx_hetxx_getError(const rocblas_handle handle,
 
     std::vector<T> hW(32 * n);
 
+    rocblas_handle handle2;
+    rocblas_create_handle(&handle2);
+
+    hipStream_t stream;
+    CHECK_HIP_ERROR(hipStreamCreate(&stream));
+    CHECK_ROCBLAS_ERROR(rocblas_set_stream(handle2, stream));
+
     // input data initialization
-    sytxx_hetxx_initData<true, true, T>(handle, n, dA, lda, bc, hA);
+    sytxx_hetxx_initData<true, true, T>(handle2, n, dA, lda, bc, hA);
+
+    CHECK_HIP_ERROR(hipStreamBeginCapture(stream, hipStreamCaptureModeGlobal));
+
+    CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle2, uplo, n, dA.data(), lda, stA,
+                                              dD.data(), stD, dE.data(), stE, dTau.data(), stP, bc));
+
+    hipGraph_t graph;
+    CHECK_HIP_ERROR(hipStreamEndCapture(stream, &graph));
+    hipGraphExec_t graphExec;
+    CHECK_HIP_ERROR(hipGraphInstantiate(&graphExec, graph, nullptr, nullptr, 0));
+    CHECK_HIP_ERROR(hipGraphDestroy(graph));
 
     // execute computations
     // GPU lapack
-    CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda, stA,
-                                              dD.data(), stD, dE.data(), stE, dTau.data(), stP, bc));
+    // CHECK_ROCBLAS_ERROR(rocsolver_sytxx_hetxx(STRIDED, SYTRD, handle, uplo, n, dA.data(), lda, stA,
+    //                                           dD.data(), stD, dE.data(), stE, dTau.data(), stP, bc));
+    CHECK_HIP_ERROR(hipGraphLaunch(graphExec, stream));
+
     CHECK_HIP_ERROR(hARes.transfer_from(dA));
     CHECK_HIP_ERROR(hTau.transfer_from(dTau));
+
+    CHECK_ROCBLAS_ERROR(rocblas_destroy_handle(handle2));
+    CHECK_HIP_ERROR(hipStreamDestroy(stream));
+    CHECK_HIP_ERROR(hipGraphExecDestroy(graphExec));
 
     // Reconstruct matrix A from the factorization for implicit testing
     // A = H(n-1)...H(2)H(1)*T*H(1)'H(2)'...H(n-1)' if upper
