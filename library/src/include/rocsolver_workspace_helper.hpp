@@ -44,7 +44,7 @@ template <typename T>
 class rocsolver_workspace_helper
 {
 private:
-    bool has_scalars;
+    bool has_scalars, optim_mem;
     size_t num_excl, size_excl, size_shared;
     std::vector<uint8_t*> pointers;
     std::vector<size_t> sizes;
@@ -87,6 +87,7 @@ public:
     /* Constructor */
     rocsolver_workspace_helper()
         : has_scalars(0)
+        , optim_mem(0)
         , num_excl(0)
         , size_excl(0)
         , size_shared(0)
@@ -215,6 +216,17 @@ public:
             return (T*)pointers[0];
         else
             return nullptr;
+    }
+
+    /* Sets a value indicating if the optimal amount of memory for TRSM is available. May be called anytime. */
+    void set_optim_mem(bool optim_mem)
+    {
+        this->optim_mem = optim_mem;
+    }
+    /* Gets a value indicating if the optimal amount of memory for TRSM is available. May be called anytime. */
+    bool get_optim_mem()
+    {
+        return this->optim_mem;
     }
 
     /* Returns the total amount of device memory required by the workspaces assigned to this helper and its
