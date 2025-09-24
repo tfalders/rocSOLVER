@@ -38,7 +38,7 @@ ROCSOLVER_BEGIN_NAMESPACE
 template <bool BATCHED, bool STRIDED, typename T>
 void rocsolver_getri_outofplace_getMemorySize(const rocblas_int n,
                                               const rocblas_int batch_count,
-                                              rocsolver_workspace_helper* work_helper,
+                                              rocsolver_workspace_helper<T>* work_helper,
                                               bool* optim_mem)
 {
     // if quick return, no need of workspace
@@ -101,7 +101,7 @@ rocblas_status rocsolver_getri_outofplace_template(rocblas_handle handle,
                                                    const rocblas_stride strideC,
                                                    rocblas_int* info,
                                                    const rocblas_int batch_count,
-                                                   rocsolver_workspace_helper* work_helper,
+                                                   rocsolver_workspace_helper<T>* work_helper,
                                                    const bool optim_mem,
                                                    const bool pivot)
 {

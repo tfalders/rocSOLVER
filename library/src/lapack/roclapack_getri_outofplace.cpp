@@ -64,7 +64,7 @@ rocblas_status rocsolver_getri_outofplace_impl(rocblas_handle handle,
     rocblas_int batch_count = 1;
 
     // memory workspace sizes:
-    rocsolver_workspace_helper work_helper;
+    rocsolver_workspace_helper<T> work_helper;
     bool optim_mem;
     rocsolver_getri_outofplace_getMemorySize<false, false, T>(n, batch_count, &work_helper,
                                                               &optim_mem);

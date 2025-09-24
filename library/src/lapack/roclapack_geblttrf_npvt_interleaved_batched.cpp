@@ -68,7 +68,7 @@ rocblas_status rocsolver_geblttrf_npvt_interleaved_batched_impl(rocblas_handle h
     rocblas_int shiftC = 0;
 
     // memory workspace sizes:
-    rocsolver_workspace_helper work_helper;
+    rocsolver_workspace_helper<T> work_helper;
     bool optim_mem;
     rocsolver_geblttrf_npvt_getMemorySize<false, true, T>(nb, nblocks, batch_count, &work_helper,
                                                           &optim_mem, ldb, ldc, incb, incc);

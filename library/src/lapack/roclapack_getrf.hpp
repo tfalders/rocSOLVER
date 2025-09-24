@@ -461,7 +461,7 @@ rocblas_status getrf_panelLU(rocblas_handle handle,
                              INFO* info,
                              const I batch_count,
                              const bool pivot,
-                             rocsolver_workspace_helper* work_helper,
+                             rocsolver_workspace_helper<T>* work_helper,
                              void* work1,
                              void* work2,
                              void* work3,
@@ -542,7 +542,7 @@ void rocsolver_getrf_getMemorySize(const I m,
                                    const I n,
                                    const bool pivot,
                                    const I batch_count,
-                                   rocsolver_workspace_helper* work_helper,
+                                   rocsolver_workspace_helper<T>* work_helper,
                                    bool* optim_mem,
                                    const I lda = 1,
                                    const I inca = 1)
@@ -579,7 +579,7 @@ void rocsolver_getrf_getMemorySize(const I m,
         size_t size_iipiv = pivot ? m * sizeof(I) * batch_count : 0;
 
         // requirements for largest possible GETF2 for the sub blocks
-        rocsolver_workspace_helper* getf2_work = work_helper->add_nested();
+        rocsolver_workspace_helper<T>* getf2_work = work_helper->add_nested();
         rocsolver_getf2_getMemorySize<ISBATCHED, T>(m, dim, pivot, batch_count, getf2_work, true,
                                                     inca);
 
@@ -619,7 +619,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
                                         const rocblas_stride strideP,
                                         INFO* info,
                                         const I batch_count,
-                                        rocsolver_workspace_helper* work_helper,
+                                        rocsolver_workspace_helper<T>* work_helper,
                                         const bool optim_mem,
                                         const bool pivot)
 {
@@ -663,7 +663,7 @@ rocblas_status rocsolver_getrf_template(rocblas_handle handle,
     T minone = -1;
 
     // prepare workspace
-    rocsolver_workspace_helper* getf2_work = work_helper->get_nested(0);
+    rocsolver_workspace_helper<T>* getf2_work = work_helper->get_nested(0);
     INFO* iinfo = (INFO*)(*work_helper)[0];
     I* iipiv = (I*)(*work_helper)[1];
     void* work1 = (void*)(*work_helper)[2];

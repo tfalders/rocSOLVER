@@ -63,7 +63,7 @@ rocblas_status rocsolver_getf2_impl(rocblas_handle handle,
     I batch_count = 1;
 
     // memory workspace sizes:
-    rocsolver_workspace_helper work_helper;
+    rocsolver_workspace_helper<T> work_helper;
     rocsolver_getf2_getMemorySize<false, T>(m, n, pivot, batch_count, &work_helper);
 
     if(rocblas_is_device_memory_size_query(handle))

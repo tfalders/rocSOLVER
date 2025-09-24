@@ -76,7 +76,7 @@ template <bool BATCHED, bool STRIDED, typename T>
 void rocsolver_gesv_getMemorySize(const rocblas_int n,
                                   const rocblas_int nrhs,
                                   const rocblas_int batch_count,
-                                  rocsolver_workspace_helper* work_helper,
+                                  rocsolver_workspace_helper<T>* work_helper,
                                   bool* optim_mem)
 {
     // if quick return, no workspace is needed
@@ -91,15 +91,15 @@ void rocsolver_gesv_getMemorySize(const rocblas_int n,
 
     // PHASE 1
     // workspace required for calling GETRF
-    rocsolver_workspace_helper* getrf_work = work_helper->add_nested();
+    rocsolver_workspace_helper<T>* getrf_work = work_helper->add_nested();
     rocsolver_getrf_getMemorySize<BATCHED, STRIDED, T>(n, n, true, batch_count, getrf_work, &opt1);
 
     // PHASE 2
-    rocsolver_workspace_helper* phase2_work = work_helper->add_nested();
+    rocsolver_workspace_helper<T>* phase2_work = work_helper->add_nested();
     phase2_work->set_nested_capacity(1);
 
     // workspace required for calling GETRS
-    rocsolver_workspace_helper* getrs_work = phase2_work->add_nested();
+    rocsolver_workspace_helper<T>* getrs_work = phase2_work->add_nested();
     rocsolver_getrs_getMemorySize<BATCHED, STRIDED, T>(rocblas_operation_none, n, nrhs, batch_count,
                                                        getrs_work, &opt2);
     *optim_mem = opt1 && opt2;
@@ -126,7 +126,7 @@ rocblas_status rocsolver_gesv_template(rocblas_handle handle,
                                        const rocblas_stride strideB,
                                        rocblas_int* info,
                                        const rocblas_int batch_count,
-                                       rocsolver_workspace_helper* work_helper,
+                                       rocsolver_workspace_helper<T>* work_helper,
                                        bool optim_mem)
 {
     ROCSOLVER_ENTER("gesv", "n:", n, "nrhs:", nrhs, "shiftA:", shiftA, "lda:", lda,
@@ -152,9 +152,9 @@ rocblas_status rocsolver_gesv_template(rocblas_handle handle,
         return rocblas_status_success;
 
     // prepare workspace
-    rocsolver_workspace_helper* getrf_work = work_helper->get_nested(0);
-    rocsolver_workspace_helper* phase2_work = work_helper->get_nested(1);
-    rocsolver_workspace_helper* getrs_work = phase2_work->get_nested(0);
+    rocsolver_workspace_helper<T>* getrf_work = work_helper->get_nested(0);
+    rocsolver_workspace_helper<T>* phase2_work = work_helper->get_nested(1);
+    rocsolver_workspace_helper<T>* getrs_work = phase2_work->get_nested(0);
     T* copyB = (T*)(*phase2_work)[0];
 
     // constants in host memory

@@ -64,7 +64,7 @@ rocblas_status rocsolver_gesv_strided_batched_impl(rocblas_handle handle,
     rocblas_int shiftB = 0;
 
     // memory workspace sizes:
-    rocsolver_workspace_helper work_helper;
+    rocsolver_workspace_helper<T> work_helper;
     bool optim_mem;
     rocsolver_gesv_getMemorySize<false, true, T>(n, nrhs, batch_count, &work_helper, &optim_mem);
 

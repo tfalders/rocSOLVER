@@ -53,7 +53,7 @@ template <bool BATCHED, bool STRIDED, typename T>
 void rocsolver_geblttrf_npvt_getMemorySize(const rocblas_int nb,
                                            const rocblas_int nblocks,
                                            const rocblas_int batch_count,
-                                           rocsolver_workspace_helper* work_helper,
+                                           rocsolver_workspace_helper<T>* work_helper,
                                            bool* optim_mem,
                                            const rocblas_int ldb = 1,
                                            const rocblas_int ldc = 1,
@@ -74,12 +74,12 @@ void rocsolver_geblttrf_npvt_getMemorySize(const rocblas_int nb,
     size_t size_iinfo = sizeof(rocblas_int) * batch_count;
 
     // size requirements for getrf
-    rocsolver_workspace_helper* getrf_work = work_helper->add_nested();
+    rocsolver_workspace_helper<T>* getrf_work = work_helper->add_nested();
     rocsolver_getrf_getMemorySize<BATCHED, STRIDED, T>(nb, nb, false, batch_count, getrf_work,
                                                        optim_mem, ldb, incb);
 
     // size requirements for getrs
-    rocsolver_workspace_helper* getrs_work = work_helper->add_nested();
+    rocsolver_workspace_helper<T>* getrs_work = work_helper->add_nested();
     rocsolver_getrs_getMemorySize<BATCHED, STRIDED, T>(rocblas_operation_none, nb, nb, batch_count,
                                                        getrs_work, &unused, ldb, ldc, incb, incc);
 
@@ -153,7 +153,7 @@ rocblas_status rocsolver_geblttrf_npvt_template(rocblas_handle handle,
                                                 const rocblas_stride strideC,
                                                 rocblas_int* info,
                                                 const rocblas_int batch_count,
-                                                rocsolver_workspace_helper* work_helper,
+                                                rocsolver_workspace_helper<T>* work_helper,
                                                 bool optim_mem)
 {
     ROCSOLVER_ENTER("geblttrf_npvt", "nb:", nb, "nblocks:", nblocks, "shiftA:", shiftA,
@@ -168,8 +168,8 @@ rocblas_status rocsolver_geblttrf_npvt_template(rocblas_handle handle,
     rocblas_get_stream(handle, &stream);
 
     // prepare workspace
-    rocsolver_workspace_helper* getrf_work = work_helper->get_nested(0);
-    rocsolver_workspace_helper* getrs_work = work_helper->get_nested(1);
+    rocsolver_workspace_helper<T>* getrf_work = work_helper->get_nested(0);
+    rocsolver_workspace_helper<T>* getrs_work = work_helper->get_nested(1);
     rocblas_int* iinfo = (rocblas_int*)(*work_helper)[0];
 
     // prepare kernels

@@ -71,7 +71,7 @@ rocblas_status rocsolver_getrf_info32_impl(rocblas_handle handle,
     int64_t batch_count = 1;
 
     // memory workspace sizes:
-    rocsolver_workspace_helper work_helper;
+    rocsolver_workspace_helper<T> work_helper;
     bool optim_mem;
     rocsolver_getrf_getMemorySize<false, false, T>(m, n, pivot, batch_count, &work_helper,
                                                    &optim_mem, lda);
